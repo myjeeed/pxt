@@ -23,11 +23,7 @@ npm install -g typings
 Then start by cloning pxt, pxt-common-packages, and pxt-adafruit (currently private) in the same folder:
 ```
 git clone https://github.com/myjeeed/pxt.git
-```
-```
 git clone https://github.com/Microsoft/pxt-common-packages.git
-```
-```
 git clone https://github.com/Microsoft/pxt-adafruit.git
 ```
 
@@ -37,17 +33,9 @@ At this point, you will have these three folders in the same directory: pxt, pxt
 ## Linking a target to PXT
 ```
 cd pxt-adafruit
-```
-```
 npm link ../pxt
-```
-```
 npm link ../pxt-common-packages
-```
-```
 cd pxt-common-packages
-```
-```
 npm link ../pxt
 ```
 
@@ -55,22 +43,15 @@ npm link ../pxt
 ## Build and run
 ```
 cd pxt
-```
-```
 npm install
 typings install
 jake
 ```
+
 ```
 cd pxt-adafruit
-```
-```
 npm install
-```
-```
 cd pxt-common-packages
-```
-```
 npm install
 ```
 
