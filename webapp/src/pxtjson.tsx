@@ -5,112 +5,184 @@ import * as srceditor from "./srceditor"
 import * as sui from "./sui";
 import * as codecard from "./codecard"
 
+import * as hidbridge from "./hidbridge";
+
+let d3  = require("d3");
+
 import Cloud = pxt.Cloud;
 import Util = pxt.Util;
 
 const lf = Util.lf
+const max_x_items = 300;
+
+class RecordedData {
+    public rawData: SensorData[];
+    public labelStr: string;
+    public labelNum: number;
+    public startTime: number;
+    public endTime: number;
+    public svg: any;    // points to the svg containing the visualization of that recorded data.
+
+    constructor(_labelNum: number) {
+        this.rawData = [];
+        this.labelNum = _labelNum;
+    }
+}
+
+class SensorData {
+    public acc: number[];
+    public mag: number[];
+    public roll: number;
+    public pitch: number;
+
+    constructor() {
+        this.acc = [0, 0, 0];
+        this.mag = [0, 0, 0];
+        this.pitch = 0;
+        this.roll = 0;
+    }
+}
 
 export class Editor extends srceditor.Editor {
+
     config: pxt.PackageConfig = {} as any;
     isSaving: boolean;
     changeMade: boolean = false;
 
+    isRecording: boolean = false;
+    wasRecording: boolean = false;
+
+    recordedDataList: RecordedData[];
+
     prepare() {
-        this.isReady = true
+        this.isReady = true;
+
+        this.recordedDataList = [];
+
+        // assign events to capture of recording or not recording.
+        window.onkeydown = (e: any) => {
+            // if pressed "space" key
+            if (e.keyCode == 32)
+                this.isRecording = true;
+        };
+
+        window.onkeyup = (e: any) => {
+            // if released "space" key
+            if (e.keyCode == 32)
+                this.isRecording = false;
+        };
+
+        // initialize the dataset with empty values
+        let dataset: SensorData[];
+        dataset = [];
+
+        for (let i = 0; i < max_x_items; i++) {
+            let data = new SensorData();
+
+            dataset.push(data);
+        }
+
+        let svg = d3.select("#viz")
+            .append("svg")
+            .attr("width", 600)
+            .attr("height", 300);
+
+
+        // Initialize "g" elements in the svg that will contain other graphical elements based on 
+        // the number of variables that will be visualized at every time point.
+        let points = svg.selectAll("g")
+                            .data(dataset)
+                            .enter()
+                            .append("g");
+
+        // First dimension:
+        let x = points.append("circle")
+            .attr("cx", (d: SensorData, i: any) => {
+                return (i * 2);
+            })
+            .attr("cy", (d: SensorData, i: any) => {
+                return d.acc[0] + 25;
+            })
+            .attr("r", 2)
+            .attr("fill", "red");
+
+        // Second dimension:
+        let y = points.append("circle")
+            .attr("cx", (d: SensorData, i: any) => {
+                return (i * 2);
+            })
+            .attr("cy", (d: SensorData, i: any) => {
+                return d.acc[1] + 25;
+            })
+            .attr("r", 2)
+            .attr("fill", "green");
+
+        // Third dimension:
+        let z = points.append("circle")
+            .attr("cx", (d: SensorData, i: any) => {
+                return (i * 2);
+            })
+            .attr("cy", (d: SensorData, i: any) => {
+                return d.acc[2] + 25;
+            })
+            .attr("r", 2)
+            .attr("fill", "blue");
+
+        // Bind updating functions to every instance of the serial port:
+        if (hidbridge.shouldUse()) {
+            hidbridge.initAsync()
+                .then(dev => {
+                    dev.onSerial = (buf, isErr) => {
+                        console.log(Util.fromUTF8(Util.uint8ArrayToString(buf)));
+
+                        let strBuf: string = Util.fromUTF8(Util.uint8ArrayToString(buf));
+                        document.getElementById("serial_span").innerText = strBuf;
+
+                        // visualize ACC(x,y,z) to d3: 
+                        // pop the oldest value from the visualization queue
+                        dataset.shift();
+
+                        // create a new SensorData instance based on the serial port values
+                        let newData = new SensorData();
+
+                        let strBufArray = strBuf.split(" ");
+                        newData.acc = [parseInt(strBufArray[0]), parseInt(strBufArray[1]), parseInt(strBufArray[2])];
+
+                        dataset.push(newData);
+
+                        x.attr("cy", (d: any, i: any) => {
+                            return Math.abs(dataset[i].acc[0] * (100 / 1024));
+                        });
+
+                        y.attr("cy", (d: any, i: any) => {
+                            return Math.abs(dataset[i].acc[1] * (100 / 1024));
+                        });
+
+                        z.attr("cy", (d: any, i: any) => {
+                            return Math.abs(dataset[i].acc[2] * (100 / 1024));
+                        });
+                    }
+                })
+                .catch(e => {
+                    pxt.log(`hidbridge failed to load, ${e}`);
+                })
+        }
     }
+
 
     getId() {
         return "pxtJsonEditor"
     }
 
-    display() {
-        const c = this.config
-        const save = () => {
-            this.isSaving = true;
-            const f = pkg.mainEditorPkg().lookupFile("this/" + pxt.CONFIG_NAME);
-            f.setContentAsync(JSON.stringify(this.config, null, 4) + "\n").then(() => {
-                pkg.mainPkg.config.name = c.name;
-                this.parent.setState({projectName: c.name});
-                this.parent.forceUpdate()
-                Util.nextTick(this.changeCallback)
-                this.isSaving = false;
-                this.changeMade = true;
-                // switch to previous coding experience
-                this.parent.openPreviousEditor();
-            })
-        }
-        const setFileName = (v: string) => {
-            c.name = v;
-            this.parent.forceUpdate();
-        }
-        const deleteProject = () => {
-            this.parent.removeProject();
-        }
-        const initCard = () => {
-            if (!c.card) c.card = {}
-        }
-        const card = c.card || {};
-        let userConfigs: pxt.CompilationConfig[] = [];
-        pkg.allEditorPkgs().map(ep => ep.getKsPkg())
-            .filter(dep => !!dep && dep.isLoaded && !!dep.config && !!dep.config.yotta && !!dep.config.yotta.userConfigs)
-            .forEach(dep => userConfigs = userConfigs.concat(dep.config.yotta.userConfigs));
 
-        const isUserConfigActive = (uc: pxt.CompilationConfig) => {
-            const cfg = Util.jsonFlatten(this.config.yotta ? this.config.yotta.config : {});
-            const ucfg = Util.jsonFlatten(uc.config);
-            return !Object.keys(ucfg).some(k => ucfg[k] === null ? !!cfg[k] : cfg[k] !== ucfg[k]);
-        }
-        const applyUserConfig = (uc: pxt.CompilationConfig) => {
-            const cfg = Util.jsonFlatten(this.config.yotta ? this.config.yotta.config : {});
-            const ucfg = Util.jsonFlatten(uc.config);
-            if (isUserConfigActive(uc)) {
-                Object.keys(ucfg).forEach(k => delete cfg[k]);
-            } else {
-                Object.keys(ucfg).forEach(k => cfg[k] = ucfg[k]);
-            }
-            // update cfg
-            if (Object.keys(cfg).length) {
-                if (!this.config.yotta) this.config.yotta = {};
-                Object.keys(cfg).filter(k => cfg[k] === null).forEach(k => delete cfg[k]);
-                this.config.yotta.config = Util.jsonUnFlatten(cfg);
-            } else {
-                if (this.config.yotta) {
-                    delete this.config.yotta.config;
-                    if (!Object.keys(this.config.yotta).length)
-                        delete this.config.yotta;
-                }
-            }
-            // trigger update            
-            save();
-        }
+    display() {
         return (
-            <div className="ui content">
-                <div className="ui segment form text" style={{ backgroundColor: "white" }}>
-                    <sui.Input label={lf("Name")} value={c.name} onChange={setFileName}/>
-                    {userConfigs.map(uc =>
-                        <sui.Checkbox
-                            key={`userconfig-${uc.description}`}
-                            inputLabel={uc.description}
-                            checked={isUserConfigActive(uc) }
-                            onChange={() => applyUserConfig(uc) } />
-                    ) }
-                    <sui.Field>
-                        <sui.Button text={lf("Save")} class={`green ${this.isSaving ? 'disabled' : ''}`} onClick={() => save()} />
-                        <sui.Button text={lf("Edit Settings As text") } onClick={() => this.editSettingsText() } />
-                    </sui.Field>
-                </div>
+            <div id="viz" className="ui content">
+                Serial value: <span id="serial_span"></span>
             </div>
         )
     }
 
-    editSettingsText() {
-        this.changeMade = false;
-        this.parent.editText();
-    }
-
-    getCurrentSource() {
-        return JSON.stringify(this.config, null, 4) + "\n"
-    }
 
     acceptsFile(file: pkg.File) {
         if (file.name != pxt.CONFIG_NAME) return false
@@ -127,19 +199,5 @@ export class Editor extends srceditor.Editor {
         } catch (e) {
             return false;
         }
-    }
-
-    loadFileAsync(file: pkg.File): Promise<void> {
-        this.config = JSON.parse(file.content)
-        this.setDiagnostics(file, this.snapshotState())
-        this.changeMade = false;
-        return Promise.resolve();
-    }
-
-    unloadFileAsync(): Promise<void> {
-        if (this.changeMade) {
-            return this.parent.reloadHeaderAsync();
-        }
-        return Promise.resolve();
     }
 }
