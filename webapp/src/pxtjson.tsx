@@ -161,6 +161,72 @@ export class Editor extends srceditor.Editor {
                         z.attr("cy", (d: any, i: any) => {
                             return Math.abs(dataset[i].acc[2] * (100 / 1024));
                         });
+
+                        // record data if the user is holding the space bar:
+                        if (this.wasRecording == false && this.isRecording == true) {
+                            // start recording:
+                            let newRecord = new RecordedData(1);
+                            this.recordedDataList.push(newRecord);
+                            this.recordedDataList[this.recordedDataList.length - 1].startTime = Date.now();
+                            this.recordedDataList[this.recordedDataList.length - 1].rawData.push(newData);
+                        }
+                        else if (this.wasRecording == true && this.isRecording == true) {
+                            // continue recording:
+                            this.recordedDataList[this.recordedDataList.length - 1].rawData.push(newData);
+                        }
+                        else if (this.wasRecording == true && this.isRecording == false) {
+                            // stop recording:
+                            this.recordedDataList[this.recordedDataList.length - 1].endTime = Date.now();
+
+                            // visualize the recorded data:
+                            let newSVG = d3.select("#viz")
+                                .append("svg")
+                                .attr("width", 150)
+                                .attr("height", 300);
+
+                            // Initialize "g" elements in the svg that will contain other graphical elements based on 
+                            // the number of variables that will be visualized at every time point.
+                            let newPoints = newSVG.selectAll("g")
+                                                .data(this.recordedDataList[this.recordedDataList.length - 1].rawData)
+                                                .enter()
+                                                .append("g");
+
+                            // TODO: turn this into a function?
+                            // First dimension:
+                            newPoints.append("circle")
+                                .attr("cx", (d: SensorData, i: any) => {
+                                    return (i * 2);
+                                })
+                                .attr("cy", (d: SensorData, i: any) => {
+                                    return Math.abs(d.acc[0] * (100 / 1024));
+                                })
+                                .attr("r", 2)
+                                .attr("fill", "red");
+
+                            // Second dimension:
+                            newPoints.append("circle")
+                                .attr("cx", (d: SensorData, i: any) => {
+                                    return (i * 2);
+                                })
+                                .attr("cy", (d: SensorData, i: any) => {
+                                    return Math.abs(d.acc[1] * (100 / 1024));
+                                })
+                                .attr("r", 2)
+                                .attr("fill", "green");
+
+                            // Third dimension:
+                            newPoints.append("circle")
+                                .attr("cx", (d: SensorData, i: any) => {
+                                    return (i * 2);
+                                })
+                                .attr("cy", (d: SensorData, i: any) => {
+                                    return Math.abs(d.acc[2] * (100 / 1024));
+                                })
+                                .attr("r", 2)
+                                .attr("fill", "blue");
+                        }
+
+                        this.wasRecording = this.isRecording;
                     }
                 })
                 .catch(e => {
