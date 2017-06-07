@@ -96,37 +96,73 @@ export class Editor extends srceditor.Editor {
                             .append("g");
 
         // First dimension:
-        let x = points.append("circle")
-            .attr("cx", (d: SensorData, i: any) => {
-                return (i * 2);
+        let x = points.append("line")
+            .attr("x1", (d: SensorData, i: any) => {
+                return i;
             })
-            .attr("cy", (d: SensorData, i: any) => {
-                return d.acc[0] + 25;
+            .attr("y1", (d: SensorData, i: any) => {
+                return Math.abs(dataset[i].acc[0] * (100 / 1024));
             })
-            .attr("r", 2)
-            .attr("fill", "red");
+            .attr("x2", (d: SensorData, i: any) => {
+                return (i + 1);
+            })
+            .attr("y2", (d: SensorData, i: any) => {
+                if (i + 1 < dataset.length)
+                    return Math.abs(dataset[i + 1].acc[0] * (100 / 1024));
+                else if (i + 1 == dataset.length)
+                    return Math.abs(dataset[i].acc[0] * (100 / 1024));
+                else
+                    return 0;
+            })
+            .attr("stroke", "red")
+            .attr("stroke-width", 1);
 
-        // Second dimension:
-        let y = points.append("circle")
-            .attr("cx", (d: SensorData, i: any) => {
-                return (i * 2);
+        // First dimension:
+        let y = points.append("line")
+            .attr("x1", (d: SensorData, i: any) => {
+                return i;
             })
-            .attr("cy", (d: SensorData, i: any) => {
-                return d.acc[1] + 25;
+            .attr("y1", (d: SensorData, i: any) => {
+                return Math.abs(dataset[i].acc[1] * (100 / 1024));
             })
-            .attr("r", 2)
-            .attr("fill", "green");
+            .attr("x2", (d: SensorData, i: any) => {
+                return (i + 1);
+            })
+            .attr("y2", (d: SensorData, i: any) => {
+                if (i + 1 < dataset.length)
+                    return Math.abs(dataset[i + 1].acc[1] * (100 / 1024));
+                else if (i + 1 == dataset.length)
+                    return Math.abs(dataset[i].acc[1] * (100 / 1024));
+                else
+                    return 0;
+            })
+            .attr("stroke", "green")
+            .attr("stroke-width", 1);
 
-        // Third dimension:
-        let z = points.append("circle")
-            .attr("cx", (d: SensorData, i: any) => {
-                return (i * 2);
+                // First dimension:
+        let z = points.append("line")
+            .attr("x1", (d: SensorData, i: any) => {
+                return i;
             })
-            .attr("cy", (d: SensorData, i: any) => {
-                return d.acc[2] + 25;
+            .attr("y1", (d: SensorData, i: any) => {
+                return Math.abs(dataset[i].acc[2] * (100 / 1024));
             })
-            .attr("r", 2)
-            .attr("fill", "blue");
+            .attr("x2", (d: SensorData, i: any) => {
+                return (i + 1);
+            })
+            .attr("y2", (d: SensorData, i: any) => {
+                if (i + 1 < dataset.length)
+                    return Math.abs(dataset[i + 1].acc[2] * (100 / 1024));
+                else if (i + 1 == dataset.length)
+                    return Math.abs(dataset[i].acc[2] * (100 / 1024));
+                else
+                    return 0;
+            })
+            .attr("stroke", "blue")
+            .attr("stroke-width", 1);
+
+        d3.select("#viz")
+            .append("br");
 
         // Bind updating functions to every instance of the serial port:
         if (hidbridge.shouldUse()) {
@@ -150,16 +186,40 @@ export class Editor extends srceditor.Editor {
 
                         dataset.push(newData);
 
-                        x.attr("cy", (d: any, i: any) => {
+                        x.attr("y1", (d: any, i: any) => {
                             return Math.abs(dataset[i].acc[0] * (100 / 1024));
+                        })
+                        .attr("y2", (d: any, i: any) => {
+                            if (i + 1 < dataset.length)
+                                return Math.abs(dataset[i + 1].acc[0] * (100 / 1024));
+                            else if (i + 1 == dataset.length)
+                                return Math.abs(dataset[i].acc[0] * (100 / 1024));
+                            else
+                                return 0;
                         });
 
-                        y.attr("cy", (d: any, i: any) => {
+                        y.attr("y1", (d: any, i: any) => {
                             return Math.abs(dataset[i].acc[1] * (100 / 1024));
+                        })
+                        .attr("y2", (d: any, i: any) => {
+                            if (i + 1 < dataset.length)
+                                return Math.abs(dataset[i + 1].acc[1] * (100 / 1024));
+                            else if (i + 1 == dataset.length)
+                                return Math.abs(dataset[i].acc[1] * (100 / 1024));
+                            else
+                                return 0;
                         });
 
-                        z.attr("cy", (d: any, i: any) => {
+                        z.attr("y1", (d: any, i: any) => {
                             return Math.abs(dataset[i].acc[2] * (100 / 1024));
+                        })
+                        .attr("y2", (d: any, i: any) => {
+                            if (i + 1 < dataset.length)
+                                return Math.abs(dataset[i + 1].acc[2] * (100 / 1024));
+                            else if (i + 1 == dataset.length)
+                                return Math.abs(dataset[i].acc[2] * (100 / 1024));
+                            else
+                                return 0;
                         });
 
                         // record data if the user is holding the space bar:
@@ -193,37 +253,70 @@ export class Editor extends srceditor.Editor {
 
                             // TODO: turn this into a function?
                             // First dimension:
-                            newPoints.append("circle")
-                                .attr("cx", (d: SensorData, i: any) => {
-                                    return (i * 2);
+                            newPoints.append("line")
+                                .attr("x1", (d: SensorData, i: any) => {
+                                    return i;
                                 })
-                                .attr("cy", (d: SensorData, i: any) => {
-                                    return Math.abs(d.acc[0] * (100 / 1024));
+                                .attr("y1", (d: SensorData, i: any) => {
+                                    return Math.abs(this.recordedDataList[this.recordedDataList.length - 1].rawData[i].acc[0] * (100 / 1024));
                                 })
-                                .attr("r", 2)
-                                .attr("fill", "red");
+                                .attr("x2", (d: SensorData, i: any) => {
+                                    return (i + 1);
+                                })
+                                .attr("y2", (d: SensorData, i: any) => {
+                                    if (i + 1 < this.recordedDataList[this.recordedDataList.length - 1].rawData.length)
+                                        return Math.abs(this.recordedDataList[this.recordedDataList.length - 1].rawData[i + 1].acc[0] * (100 / 1024));
+                                    else if (i + 1 == this.recordedDataList[this.recordedDataList.length - 1].rawData.length)
+                                        return Math.abs(this.recordedDataList[this.recordedDataList.length - 1].rawData[i - 1].acc[0] * (100 / 1024));
+                                    else
+                                        return 0;
+                                })
+                                .attr("stroke", "red")
+                                .attr("stroke-width", 1);
 
                             // Second dimension:
-                            newPoints.append("circle")
-                                .attr("cx", (d: SensorData, i: any) => {
-                                    return (i * 2);
+                            newPoints.append("line")
+                                .attr("x1", (d: SensorData, i: any) => {
+                                    return i;
                                 })
-                                .attr("cy", (d: SensorData, i: any) => {
-                                    return Math.abs(d.acc[1] * (100 / 1024));
+                                .attr("y1", (d: SensorData, i: any) => {
+                                    return Math.abs(this.recordedDataList[this.recordedDataList.length - 1].rawData[i].acc[1] * (100 / 1024));
                                 })
-                                .attr("r", 2)
-                                .attr("fill", "green");
+                                .attr("x2", (d: SensorData, i: any) => {
+                                    return (i + 1);
+                                })
+                                .attr("y2", (d: SensorData, i: any) => {
+                                    if (i + 1 < this.recordedDataList[this.recordedDataList.length - 1].rawData.length)
+                                        return Math.abs(this.recordedDataList[this.recordedDataList.length - 1].rawData[i + 1].acc[1] * (100 / 1024));
+                                    else if (i + 1 == this.recordedDataList[this.recordedDataList.length - 1].rawData.length)
+                                        return Math.abs(this.recordedDataList[this.recordedDataList.length - 1].rawData[i - 1].acc[1] * (100 / 1024));
+                                    else
+                                        return 0;
+                                })
+                                .attr("stroke", "green")
+                                .attr("stroke-width", 1);
 
                             // Third dimension:
-                            newPoints.append("circle")
-                                .attr("cx", (d: SensorData, i: any) => {
-                                    return (i * 2);
+                            newPoints.append("line")
+                                .attr("x1", (d: SensorData, i: any) => {
+                                    return i;
                                 })
-                                .attr("cy", (d: SensorData, i: any) => {
-                                    return Math.abs(d.acc[2] * (100 / 1024));
+                                .attr("y1", (d: SensorData, i: any) => {
+                                    return Math.abs(this.recordedDataList[this.recordedDataList.length - 1].rawData[i].acc[2] * (100 / 1024));
                                 })
-                                .attr("r", 2)
-                                .attr("fill", "blue");
+                                .attr("x2", (d: SensorData, i: any) => {
+                                    return (i + 1);
+                                })
+                                .attr("y2", (d: SensorData, i: any) => {
+                                    if (i + 1 < this.recordedDataList[this.recordedDataList.length - 1].rawData.length)
+                                        return Math.abs(this.recordedDataList[this.recordedDataList.length - 1].rawData[i + 1].acc[2] * (100 / 1024));
+                                    else if (i + 1 == this.recordedDataList[this.recordedDataList.length - 1].rawData.length)
+                                        return Math.abs(this.recordedDataList[this.recordedDataList.length - 1].rawData[i - 1].acc[2] * (100 / 1024));
+                                    else
+                                        return 0;
+                                })
+                                .attr("stroke", "blue")
+                                .attr("stroke-width", 1);
                         }
 
                         this.wasRecording = this.isRecording;
