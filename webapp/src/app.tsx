@@ -4,8 +4,6 @@
 /// <reference path="../../built/pxtsim.d.ts"/>
 /// <reference path="../../built/pxtwinrt.d.ts"/>
 
-// import * as ell from 'ell';
-
 import * as React from "react";
 import * as ReactDOM from "react-dom";
 import * as workspace from "./workspace";
@@ -57,19 +55,6 @@ const lf = Util.lf
 pxsim.util.injectPolyphils();
 
 let theEditor: ProjectView;
-
-// function vector(...xs: number[]): ell.DoubleVector {
-//     const d = new ell.DoubleVector();
-//     xs.forEach(i => d.add(i));
-//     return d;
-// }
-
-// function vectorvector(...vs: ell.DoubleVector[]): ell.DoubleVectorVector {
-//     const d = new ell.DoubleVectorVector();
-//     vs.forEach(v => d.add(v));
-//     return d;
-// }
-
 
 /*
 class CloudSyncButton extends data.Component<ISettingsProps, {}> {
@@ -838,10 +823,6 @@ export class ProjectView
         //         pxt.debug('unknown message: ' + ev.data);
         //     }
         // }
-    }
-
-    testELL() {
-        console.log("testing ell");
     }
 
     exportProjectToFileAsync(): Promise<Uint8Array> {
@@ -1681,7 +1662,6 @@ ${compileService && compileService.githubCorePackage && compileService.gittag ? 
                                     {targetTheme.portraitLogo ? (<a className="ui" target="_blank" href={targetTheme.logoUrl}><img className='ui mini image portrait only' src={Util.toDataUri(targetTheme.portraitLogo) } alt={`${targetTheme.boardName} Logo`}/></a>) : null}
                                 </span>
                                 {!inTutorial ? <sui.Item class="openproject" role="menuitem" textClass="landscape only" icon="folder open large" text={lf("Projects") } onClick={() => this.openProject() } /> : null}
-                                {!inTutorial ? <sui.Item class="openproject" role="menuitem" textClass="landscape only" icon="folder open large" text={lf("Test ELL") } onClick={() => this.testELL() } /> : null}
                                     {!inTutorial ? <sui.Item class="openproject" role="menuitem" textClass="landscape only" icon="folder open large" text={lf("Test Serial") } onClick={() => this.testSerial() } /> : null}
                                 {!inTutorial && this.state.header && sharingEnabled ? <sui.Item class="shareproject" role="menuitem" textClass="widedesktop only" text={lf("Share") } icon="share alternate large" onClick={() => this.embed() } /> : null}
                                 {inTutorial ? <sui.Item class="tutorialname" role="menuitem" textClass="landscape only" text={tutorialOptions.tutorialName} /> : null}

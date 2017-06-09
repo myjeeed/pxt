@@ -1,3 +1,7 @@
+/// <reference path="../../typings/globals/react/index.d.ts" />
+/// <reference path="../../typings/globals/react-dom/index.d.ts" />
+/// <reference path="../../built/pxtlib.d.ts" />
+
 import * as React from "react";
 import * as pkg from "./package";
 import * as core from "./core";
@@ -7,7 +11,7 @@ import * as codecard from "./codecard"
 
 import * as hidbridge from "./hidbridge";
 
-let d3  = require("d3");
+const d3 = require("d3");
 
 import Cloud = pxt.Cloud;
 import Util = pxt.Util;
@@ -43,7 +47,30 @@ class SensorData {
     }
 }
 
+function download(filename: string, text: string) {
+    let pom = document.createElement('a');
+    pom.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+    pom.setAttribute('download', filename);
+
+    if (document.createEvent) {
+        let event = document.createEvent('MouseEvents');
+        event.initEvent('click', true, true);
+        pom.dispatchEvent(event);
+    }
+    else {
+        pom.click();
+    }
+}
+
+
+function testELL() {
+    console.log("ELL is still not working!");
+    // let model = new ell.ELL_Model();
+    // let model2 = new ell.ELL_Model();
+}
+
 export class Editor extends srceditor.Editor {
+
 
     config: pxt.PackageConfig = {} as any;
     isSaving: boolean;
@@ -55,11 +82,12 @@ export class Editor extends srceditor.Editor {
     recordedDataList: RecordedData[];
 
     prepare() {
+
         this.isReady = true;
 
         this.recordedDataList = [];
 
-        // assign events to capture of recording or not recording.
+        // assign events to capture if recording or not
         window.onkeydown = (e: any) => {
             // if pressed "space" key
             if (e.keyCode == 32)
@@ -238,6 +266,8 @@ export class Editor extends srceditor.Editor {
                             // stop recording:
                             this.recordedDataList[this.recordedDataList.length - 1].endTime = Date.now();
 
+                            // JSON.stringify(this.recordedDataList[this.recordedDataList.length - 1])
+
                             // visualize the recorded data:
                             let newSVG = d3.select("#viz")
                                 .append("svg")
@@ -333,15 +363,42 @@ export class Editor extends srceditor.Editor {
         return "pxtJsonEditor"
     }
 
-
     display() {
+        console.log("is it working?");
+        let tempThis = this;
+
+        function saveToFile() {
+            console.log("writing to file...");
+
+            download('recorded.json', JSON.stringify(tempThis.recordedDataList));
+        }
+
+        function loadFromFile(e: any) {
+            let file = e.target.files;
+
+            let reader = new FileReader();
+            reader.readAsText(file[0]);
+
+            reader.onload = function() {
+                let str = reader.result;
+                console.log(str);
+                let obj: RecordedData[] = JSON.parse(str) as RecordedData[];
+
+                for (let i = 0; i < obj.length; i++)
+                    console.log("start: " + obj[i].startTime + " end: " + obj[i].endTime);
+            };
+        }
+
         return (
             <div id="viz" className="ui content">
                 Serial value: <span id="serial_span"></span>
+                <br/>
+                <button onClick={saveToFile}>Save recorded labels to file</button>
+                <input onChange={loadFromFile} id="file_input" type="file"/>
+                <br/>
             </div>
         )
     }
-
 
     acceptsFile(file: pkg.File) {
         if (file.name != pxt.CONFIG_NAME) return false
