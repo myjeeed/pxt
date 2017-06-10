@@ -21,6 +21,7 @@ import * as appcache from "./appcache";
 import * as screenshot from "./screenshot";
 import * as hidbridge from "./hidbridge";
 import * as share from "./share";
+import * as gesture from "./gesture";
 import * as lang from "./lang";
 import * as tutorial from "./tutorial";
 import * as editortoolbar from "./editortoolbar";
@@ -94,6 +95,7 @@ export class ProjectView
     scriptSearch: scriptsearch.ScriptSearch;
     projects: projects.Projects;
     shareEditor: share.ShareEditor;
+    gestureToolbox: gesture.GestureToolbox;
     languagePicker: lang.LanguagePicker;
     tutorialComplete: tutorial.TutorialComplete;
     prevEditorId: string;
@@ -756,75 +758,6 @@ export class ProjectView
         this.projects.showOpenProject(tab);
     }
 
-    testSerial() {
-        console.log("starting to test Serial port...!");
-        
-
-        //didn't work:
-        // let HID: any;
-        // try {
-        //     HID = require('node-hid');
-        // } catch (er) {
-        //     console.error('HID: failed to load, skipping...');
-        //     return;
-        // }
-        // var devices = HID.devices();
-        // console.log(devices);
-
-        //didn't work:
-        // SerialPort.list((err: any, ports: any) => {
-        //     ports.forEach((port: any) => {
-        //         console.log(port.comName);
-        //         console.log(port.pnpId);
-        //         console.log(port.manufacturer);
-        //     });
-        // });
-
-        if (!pxt.appTarget.serial || !Cloud.isLocalHost() || !Cloud.localToken)
-            return;
-
-        if (hidbridge.shouldUse()) {
-            hidbridge.initAsync()
-                .then(dev => {
-
-                    dev.onSerial = (buf, isErr) => {
-                        console.log(Util.fromUTF8(Util.uint8ArrayToString(buf)));
- 
-                        // window.postMessage({
-                        //     type: 'serial',
-                        //     id: 'n/a', // TODO
-                        //     data: Util.fromUTF8(Util.uint8ArrayToString(buf))
-                        // }, "*")
-                    }
-                })
-                .catch(e => {
-                    pxt.log(`hidbridge failed to load, ${e}`);
-                })
-            return
-        }
-
-
-
-        // pxt.debug('initializing serial pipe');
-        // let ws = new WebSocket(`ws://localhost:${pxt.options.wsPort}/${Cloud.localToken}/serial`);
-        // ws.onopen = (ev) => {
-        //     pxt.debug('serial: socket opened');
-        // }
-        // ws.onclose = (ev) => {
-        //     pxt.debug('serial: socket closed')
-        // }
-        // ws.onmessage = (ev) => {
-        //     try {
-        //         let msg = JSON.parse(ev.data) as pxsim.SimulatorMessage;
-        //         if (msg && msg.type == 'serial')
-        //             window.postMessage(msg, "*")
-        //     }
-        //     catch (e) {
-        //         pxt.debug('unknown message: ' + ev.data);
-        //     }
-        // }
-    }
-
     exportProjectToFileAsync(): Promise<Uint8Array> {
         const mpkg = pkg.mainPkg;
         return mpkg.compressToFileAsync(this.getPreferredEditor())
@@ -864,6 +797,10 @@ export class ProjectView
     addPackage() {
         pxt.tickEvent("menu.addpackage");
         this.scriptSearch.showAddPackages();
+    }
+
+    openGesture() {
+        this.gestureToolbox.show();
     }
 
     newEmptyProject(name?: string, documentation?: string) {
@@ -1662,7 +1599,6 @@ ${compileService && compileService.githubCorePackage && compileService.gittag ? 
                                     {targetTheme.portraitLogo ? (<a className="ui" target="_blank" href={targetTheme.logoUrl}><img className='ui mini image portrait only' src={Util.toDataUri(targetTheme.portraitLogo) } alt={`${targetTheme.boardName} Logo`}/></a>) : null}
                                 </span>
                                 {!inTutorial ? <sui.Item class="openproject" role="menuitem" textClass="landscape only" icon="folder open large" text={lf("Projects") } onClick={() => this.openProject() } /> : null}
-                                    {!inTutorial ? <sui.Item class="openproject" role="menuitem" textClass="landscape only" icon="folder open large" text={lf("Test Serial") } onClick={() => this.testSerial() } /> : null}
                                 {!inTutorial && this.state.header && sharingEnabled ? <sui.Item class="shareproject" role="menuitem" textClass="widedesktop only" text={lf("Share") } icon="share alternate large" onClick={() => this.embed() } /> : null}
                                 {inTutorial ? <sui.Item class="tutorialname" role="menuitem" textClass="landscape only" text={tutorialOptions.tutorialName} /> : null}
                             </div> : <div className="left menu">
@@ -1759,6 +1695,7 @@ ${compileService && compileService.githubCorePackage && compileService.gittag ? 
                 {sandbox ? undefined : <scriptsearch.ScriptSearch parent={this} ref={v => this.scriptSearch = v} />}
                 {sandbox ? undefined : <projects.Projects parent={this} ref={v => this.projects = v} />}
                 {sandbox || !sharingEnabled ? undefined : <share.ShareEditor parent={this} ref={v => this.shareEditor = v} />}
+                <gesture.GestureToolbox parent={this} ref={v => this.gestureToolbox = v} />
                 {selectLanguage ? <lang.LanguagePicker parent={this} ref={v => this.languagePicker = v} /> : undefined}
                 {inTutorial ? <tutorial.TutorialComplete parent={this} ref={v => this.tutorialComplete = v} /> : undefined }
                 {sandbox ? <div className="ui horizontal small divided link list sandboxfooter">
@@ -1855,6 +1792,11 @@ function initLogin() {
 }
 
 function initSerial() {
+
+    // Temporarily turned off simulator's serial port
+    // Later I'd only have to switch the serial port's onSerial events (because its using the hid)
+    // I don't know I need to figure out this later
+
     // if (!pxt.appTarget.serial || !Cloud.isLocalHost() || !Cloud.localToken)
     //     return;
 

@@ -574,6 +574,12 @@ export class Editor extends srceditor.Editor {
                 this.resetFlyout();
                 this.parent.addPackage();
             }, lf("{id:category}Add Package")));
+
+            // Open gesture toolkit button
+            group.appendChild(this.createCategoryElement("", "#3131F1", "opengesture", false, null, () => {
+                this.resetFlyout();
+                this.parent.openGesture();
+            }, lf("{id:category}Open Gesture")));
         }
 
         // Inject toolbox icon css

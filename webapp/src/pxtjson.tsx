@@ -1,7 +1,3 @@
-/// <reference path="../../typings/globals/react/index.d.ts" />
-/// <reference path="../../typings/globals/react-dom/index.d.ts" />
-/// <reference path="../../built/pxtlib.d.ts" />
-
 import * as React from "react";
 import * as pkg from "./package";
 import * as core from "./core";
@@ -9,395 +5,111 @@ import * as srceditor from "./srceditor"
 import * as sui from "./sui";
 import * as codecard from "./codecard"
 
-import * as hidbridge from "./hidbridge";
-
-const d3 = require("d3");
-
 import Cloud = pxt.Cloud;
 import Util = pxt.Util;
 
 const lf = Util.lf
-const max_x_items = 300;
-
-class RecordedData {
-    public rawData: SensorData[];
-    public labelStr: string;
-    public labelNum: number;
-    public startTime: number;
-    public endTime: number;
-    public svg: any;    // points to the svg containing the visualization of that recorded data.
-
-    constructor(_labelNum: number) {
-        this.rawData = [];
-        this.labelNum = _labelNum;
-    }
-}
-
-class SensorData {
-    public acc: number[];
-    public mag: number[];
-    public roll: number;
-    public pitch: number;
-
-    constructor() {
-        this.acc = [0, 0, 0];
-        this.mag = [0, 0, 0];
-        this.pitch = 0;
-        this.roll = 0;
-    }
-}
-
-function download(filename: string, text: string) {
-    let pom = document.createElement('a');
-    pom.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
-    pom.setAttribute('download', filename);
-
-    if (document.createEvent) {
-        let event = document.createEvent('MouseEvents');
-        event.initEvent('click', true, true);
-        pom.dispatchEvent(event);
-    }
-    else {
-        pom.click();
-    }
-}
-
-
-function testELL() {
-    console.log("ELL is still not working!");
-    // let model = new ell.ELL_Model();
-    // let model2 = new ell.ELL_Model();
-}
 
 export class Editor extends srceditor.Editor {
-
-
     config: pxt.PackageConfig = {} as any;
     isSaving: boolean;
     changeMade: boolean = false;
 
-    isRecording: boolean = false;
-    wasRecording: boolean = false;
-
-    recordedDataList: RecordedData[];
-
     prepare() {
-
-        this.isReady = true;
-
-        this.recordedDataList = [];
-
-        // assign events to capture if recording or not
-        window.onkeydown = (e: any) => {
-            // if pressed "space" key
-            if (e.keyCode == 32)
-                this.isRecording = true;
-        };
-
-        window.onkeyup = (e: any) => {
-            // if released "space" key
-            if (e.keyCode == 32)
-                this.isRecording = false;
-        };
-
-        // initialize the dataset with empty values
-        let dataset: SensorData[];
-        dataset = [];
-
-        for (let i = 0; i < max_x_items; i++) {
-            let data = new SensorData();
-
-            dataset.push(data);
-        }
-
-        let svg = d3.select("#viz")
-            .append("svg")
-            .attr("width", 600)
-            .attr("height", 300);
-
-
-        // Initialize "g" elements in the svg that will contain other graphical elements based on 
-        // the number of variables that will be visualized at every time point.
-        let points = svg.selectAll("g")
-                            .data(dataset)
-                            .enter()
-                            .append("g");
-
-        // First dimension:
-        let x = points.append("line")
-            .attr("x1", (d: SensorData, i: any) => {
-                return i;
-            })
-            .attr("y1", (d: SensorData, i: any) => {
-                return Math.abs(dataset[i].acc[0] * (100 / 1024));
-            })
-            .attr("x2", (d: SensorData, i: any) => {
-                return (i + 1);
-            })
-            .attr("y2", (d: SensorData, i: any) => {
-                if (i + 1 < dataset.length)
-                    return Math.abs(dataset[i + 1].acc[0] * (100 / 1024));
-                else if (i + 1 == dataset.length)
-                    return Math.abs(dataset[i].acc[0] * (100 / 1024));
-                else
-                    return 0;
-            })
-            .attr("stroke", "red")
-            .attr("stroke-width", 1);
-
-        // First dimension:
-        let y = points.append("line")
-            .attr("x1", (d: SensorData, i: any) => {
-                return i;
-            })
-            .attr("y1", (d: SensorData, i: any) => {
-                return Math.abs(dataset[i].acc[1] * (100 / 1024));
-            })
-            .attr("x2", (d: SensorData, i: any) => {
-                return (i + 1);
-            })
-            .attr("y2", (d: SensorData, i: any) => {
-                if (i + 1 < dataset.length)
-                    return Math.abs(dataset[i + 1].acc[1] * (100 / 1024));
-                else if (i + 1 == dataset.length)
-                    return Math.abs(dataset[i].acc[1] * (100 / 1024));
-                else
-                    return 0;
-            })
-            .attr("stroke", "green")
-            .attr("stroke-width", 1);
-
-                // First dimension:
-        let z = points.append("line")
-            .attr("x1", (d: SensorData, i: any) => {
-                return i;
-            })
-            .attr("y1", (d: SensorData, i: any) => {
-                return Math.abs(dataset[i].acc[2] * (100 / 1024));
-            })
-            .attr("x2", (d: SensorData, i: any) => {
-                return (i + 1);
-            })
-            .attr("y2", (d: SensorData, i: any) => {
-                if (i + 1 < dataset.length)
-                    return Math.abs(dataset[i + 1].acc[2] * (100 / 1024));
-                else if (i + 1 == dataset.length)
-                    return Math.abs(dataset[i].acc[2] * (100 / 1024));
-                else
-                    return 0;
-            })
-            .attr("stroke", "blue")
-            .attr("stroke-width", 1);
-
-        d3.select("#viz")
-            .append("br");
-
-        // Bind updating functions to every instance of the serial port:
-        if (hidbridge.shouldUse()) {
-            hidbridge.initAsync()
-                .then(dev => {
-                    dev.onSerial = (buf, isErr) => {
-                        console.log(Util.fromUTF8(Util.uint8ArrayToString(buf)));
-
-                        let strBuf: string = Util.fromUTF8(Util.uint8ArrayToString(buf));
-                        document.getElementById("serial_span").innerText = strBuf;
-
-                        // visualize ACC(x,y,z) to d3: 
-                        // pop the oldest value from the visualization queue
-                        dataset.shift();
-
-                        // create a new SensorData instance based on the serial port values
-                        let newData = new SensorData();
-
-                        let strBufArray = strBuf.split(" ");
-                        newData.acc = [parseInt(strBufArray[0]), parseInt(strBufArray[1]), parseInt(strBufArray[2])];
-
-                        dataset.push(newData);
-
-                        x.attr("y1", (d: any, i: any) => {
-                            return Math.abs(dataset[i].acc[0] * (100 / 1024));
-                        })
-                        .attr("y2", (d: any, i: any) => {
-                            if (i + 1 < dataset.length)
-                                return Math.abs(dataset[i + 1].acc[0] * (100 / 1024));
-                            else if (i + 1 == dataset.length)
-                                return Math.abs(dataset[i].acc[0] * (100 / 1024));
-                            else
-                                return 0;
-                        });
-
-                        y.attr("y1", (d: any, i: any) => {
-                            return Math.abs(dataset[i].acc[1] * (100 / 1024));
-                        })
-                        .attr("y2", (d: any, i: any) => {
-                            if (i + 1 < dataset.length)
-                                return Math.abs(dataset[i + 1].acc[1] * (100 / 1024));
-                            else if (i + 1 == dataset.length)
-                                return Math.abs(dataset[i].acc[1] * (100 / 1024));
-                            else
-                                return 0;
-                        });
-
-                        z.attr("y1", (d: any, i: any) => {
-                            return Math.abs(dataset[i].acc[2] * (100 / 1024));
-                        })
-                        .attr("y2", (d: any, i: any) => {
-                            if (i + 1 < dataset.length)
-                                return Math.abs(dataset[i + 1].acc[2] * (100 / 1024));
-                            else if (i + 1 == dataset.length)
-                                return Math.abs(dataset[i].acc[2] * (100 / 1024));
-                            else
-                                return 0;
-                        });
-
-                        // record data if the user is holding the space bar:
-                        if (this.wasRecording == false && this.isRecording == true) {
-                            // start recording:
-                            let newRecord = new RecordedData(1);
-                            this.recordedDataList.push(newRecord);
-                            this.recordedDataList[this.recordedDataList.length - 1].startTime = Date.now();
-                            this.recordedDataList[this.recordedDataList.length - 1].rawData.push(newData);
-                        }
-                        else if (this.wasRecording == true && this.isRecording == true) {
-                            // continue recording:
-                            this.recordedDataList[this.recordedDataList.length - 1].rawData.push(newData);
-                        }
-                        else if (this.wasRecording == true && this.isRecording == false) {
-                            // stop recording:
-                            this.recordedDataList[this.recordedDataList.length - 1].endTime = Date.now();
-
-                            // JSON.stringify(this.recordedDataList[this.recordedDataList.length - 1])
-
-                            // visualize the recorded data:
-                            let newSVG = d3.select("#viz")
-                                .append("svg")
-                                .attr("width", 150)
-                                .attr("height", 300);
-
-                            // Initialize "g" elements in the svg that will contain other graphical elements based on 
-                            // the number of variables that will be visualized at every time point.
-                            let newPoints = newSVG.selectAll("g")
-                                                .data(this.recordedDataList[this.recordedDataList.length - 1].rawData)
-                                                .enter()
-                                                .append("g");
-
-                            // TODO: turn this into a function?
-                            // First dimension:
-                            newPoints.append("line")
-                                .attr("x1", (d: SensorData, i: any) => {
-                                    return i;
-                                })
-                                .attr("y1", (d: SensorData, i: any) => {
-                                    return Math.abs(this.recordedDataList[this.recordedDataList.length - 1].rawData[i].acc[0] * (100 / 1024));
-                                })
-                                .attr("x2", (d: SensorData, i: any) => {
-                                    return (i + 1);
-                                })
-                                .attr("y2", (d: SensorData, i: any) => {
-                                    if (i + 1 < this.recordedDataList[this.recordedDataList.length - 1].rawData.length)
-                                        return Math.abs(this.recordedDataList[this.recordedDataList.length - 1].rawData[i + 1].acc[0] * (100 / 1024));
-                                    else if (i + 1 == this.recordedDataList[this.recordedDataList.length - 1].rawData.length)
-                                        return Math.abs(this.recordedDataList[this.recordedDataList.length - 1].rawData[i - 1].acc[0] * (100 / 1024));
-                                    else
-                                        return 0;
-                                })
-                                .attr("stroke", "red")
-                                .attr("stroke-width", 1);
-
-                            // Second dimension:
-                            newPoints.append("line")
-                                .attr("x1", (d: SensorData, i: any) => {
-                                    return i;
-                                })
-                                .attr("y1", (d: SensorData, i: any) => {
-                                    return Math.abs(this.recordedDataList[this.recordedDataList.length - 1].rawData[i].acc[1] * (100 / 1024));
-                                })
-                                .attr("x2", (d: SensorData, i: any) => {
-                                    return (i + 1);
-                                })
-                                .attr("y2", (d: SensorData, i: any) => {
-                                    if (i + 1 < this.recordedDataList[this.recordedDataList.length - 1].rawData.length)
-                                        return Math.abs(this.recordedDataList[this.recordedDataList.length - 1].rawData[i + 1].acc[1] * (100 / 1024));
-                                    else if (i + 1 == this.recordedDataList[this.recordedDataList.length - 1].rawData.length)
-                                        return Math.abs(this.recordedDataList[this.recordedDataList.length - 1].rawData[i - 1].acc[1] * (100 / 1024));
-                                    else
-                                        return 0;
-                                })
-                                .attr("stroke", "green")
-                                .attr("stroke-width", 1);
-
-                            // Third dimension:
-                            newPoints.append("line")
-                                .attr("x1", (d: SensorData, i: any) => {
-                                    return i;
-                                })
-                                .attr("y1", (d: SensorData, i: any) => {
-                                    return Math.abs(this.recordedDataList[this.recordedDataList.length - 1].rawData[i].acc[2] * (100 / 1024));
-                                })
-                                .attr("x2", (d: SensorData, i: any) => {
-                                    return (i + 1);
-                                })
-                                .attr("y2", (d: SensorData, i: any) => {
-                                    if (i + 1 < this.recordedDataList[this.recordedDataList.length - 1].rawData.length)
-                                        return Math.abs(this.recordedDataList[this.recordedDataList.length - 1].rawData[i + 1].acc[2] * (100 / 1024));
-                                    else if (i + 1 == this.recordedDataList[this.recordedDataList.length - 1].rawData.length)
-                                        return Math.abs(this.recordedDataList[this.recordedDataList.length - 1].rawData[i - 1].acc[2] * (100 / 1024));
-                                    else
-                                        return 0;
-                                })
-                                .attr("stroke", "blue")
-                                .attr("stroke-width", 1);
-                        }
-
-                        this.wasRecording = this.isRecording;
-                    }
-                })
-                .catch(e => {
-                    pxt.log(`hidbridge failed to load, ${e}`);
-                })
-        }
+        this.isReady = true
     }
-
 
     getId() {
         return "pxtJsonEditor"
     }
 
     display() {
-        console.log("is it working?");
-        let tempThis = this;
-
-        function saveToFile() {
-            console.log("writing to file...");
-
-            download('recorded.json', JSON.stringify(tempThis.recordedDataList));
+        const c = this.config
+        const save = () => {
+            this.isSaving = true;
+            const f = pkg.mainEditorPkg().lookupFile("this/" + pxt.CONFIG_NAME);
+            f.setContentAsync(JSON.stringify(this.config, null, 4) + "\n").then(() => {
+                pkg.mainPkg.config.name = c.name;
+                this.parent.setState({projectName: c.name});
+                this.parent.forceUpdate()
+                Util.nextTick(this.changeCallback)
+                this.isSaving = false;
+                this.changeMade = true;
+                // switch to previous coding experience
+                this.parent.openPreviousEditor();
+            })
         }
-
-        function loadFromFile(e: any) {
-            let file = e.target.files;
-
-            let reader = new FileReader();
-            reader.readAsText(file[0]);
-
-            reader.onload = function() {
-                let str = reader.result;
-                console.log(str);
-                let obj: RecordedData[] = JSON.parse(str) as RecordedData[];
-
-                for (let i = 0; i < obj.length; i++)
-                    console.log("start: " + obj[i].startTime + " end: " + obj[i].endTime);
-            };
+        const setFileName = (v: string) => {
+            c.name = v;
+            this.parent.forceUpdate();
         }
+        const deleteProject = () => {
+            this.parent.removeProject();
+        }
+        const initCard = () => {
+            if (!c.card) c.card = {}
+        }
+        const card = c.card || {};
+        let userConfigs: pxt.CompilationConfig[] = [];
+        pkg.allEditorPkgs().map(ep => ep.getKsPkg())
+            .filter(dep => !!dep && dep.isLoaded && !!dep.config && !!dep.config.yotta && !!dep.config.yotta.userConfigs)
+            .forEach(dep => userConfigs = userConfigs.concat(dep.config.yotta.userConfigs));
 
+        const isUserConfigActive = (uc: pxt.CompilationConfig) => {
+            const cfg = Util.jsonFlatten(this.config.yotta ? this.config.yotta.config : {});
+            const ucfg = Util.jsonFlatten(uc.config);
+            return !Object.keys(ucfg).some(k => ucfg[k] === null ? !!cfg[k] : cfg[k] !== ucfg[k]);
+        }
+        const applyUserConfig = (uc: pxt.CompilationConfig) => {
+            const cfg = Util.jsonFlatten(this.config.yotta ? this.config.yotta.config : {});
+            const ucfg = Util.jsonFlatten(uc.config);
+            if (isUserConfigActive(uc)) {
+                Object.keys(ucfg).forEach(k => delete cfg[k]);
+            } else {
+                Object.keys(ucfg).forEach(k => cfg[k] = ucfg[k]);
+            }
+            // update cfg
+            if (Object.keys(cfg).length) {
+                if (!this.config.yotta) this.config.yotta = {};
+                Object.keys(cfg).filter(k => cfg[k] === null).forEach(k => delete cfg[k]);
+                this.config.yotta.config = Util.jsonUnFlatten(cfg);
+            } else {
+                if (this.config.yotta) {
+                    delete this.config.yotta.config;
+                    if (!Object.keys(this.config.yotta).length)
+                        delete this.config.yotta;
+                }
+            }
+            // trigger update            
+            save();
+        }
         return (
-            <div id="viz" className="ui content">
-                Serial value: <span id="serial_span"></span>
-                <br/>
-                <button onClick={saveToFile}>Save recorded labels to file</button>
-                <input onChange={loadFromFile} id="file_input" type="file"/>
-                <br/>
+            <div className="ui content">
+                <div className="ui segment form text" style={{ backgroundColor: "white" }}>
+                    <sui.Input label={lf("Name")} value={c.name} onChange={setFileName}/>
+                    {userConfigs.map(uc =>
+                        <sui.Checkbox
+                            key={`userconfig-${uc.description}`}
+                            inputLabel={uc.description}
+                            checked={isUserConfigActive(uc) }
+                            onChange={() => applyUserConfig(uc) } />
+                    ) }
+                    <sui.Field>
+                        <sui.Button text={lf("Save")} class={`green ${this.isSaving ? 'disabled' : ''}`} onClick={() => save()} />
+                        <sui.Button text={lf("Edit Settings As text") } onClick={() => this.editSettingsText() } />
+                    </sui.Field>
+                </div>
             </div>
         )
+    }
+
+    editSettingsText() {
+        this.changeMade = false;
+        this.parent.editText();
+    }
+
+    getCurrentSource() {
+        return JSON.stringify(this.config, null, 4) + "\n"
     }
 
     acceptsFile(file: pkg.File) {
@@ -415,5 +127,19 @@ export class Editor extends srceditor.Editor {
         } catch (e) {
             return false;
         }
+    }
+
+    loadFileAsync(file: pkg.File): Promise<void> {
+        this.config = JSON.parse(file.content)
+        this.setDiagnostics(file, this.snapshotState())
+        this.changeMade = false;
+        return Promise.resolve();
+    }
+
+    unloadFileAsync(): Promise<void> {
+        if (this.changeMade) {
+            return this.parent.reloadHeaderAsync();
+        }
+        return Promise.resolve();
     }
 }

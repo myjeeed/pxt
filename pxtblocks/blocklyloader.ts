@@ -963,6 +963,7 @@ namespace pxt.blocks {
             }
             // Add the "Add package" category
             getOrAddSubcategoryByWeight(tb, Util.lf("{id:category}Add Package"), "Add Package", 1, "#717171", 'blocklyTreeIconaddpackage')
+            getOrAddSubcategoryByWeight(tb, Util.lf("{id:category}Open Gesture"), "Gesture Toolbox", 1, "#3131F1", 'blocklyTreeIconaddpackage')
         }
 
         if (tb) {
