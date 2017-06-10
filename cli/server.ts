@@ -27,6 +27,41 @@ let packagedDir = ""
 let localHexDir = path.join("built", "hexcache");
 let electronHandlers: pxt.Map<ElectronHandler> = {};
 
+/** 
+ * Keeps a record of all the information for a gesture sample, including SensorData and it's Label. 
+ */
+class RecordedData {
+    public rawData: SensorData[];
+    public labelStr: string;
+    public labelNum: number;
+    public startTime: number;
+    public endTime: number;
+    public svg: any;    // points to the svg containing the visualization of that recorded data.
+
+    constructor(_labelNum: number) {
+        this.rawData = [];
+        this.labelNum = _labelNum;
+    }
+}
+
+/**
+ * Contains X, Y, Z values for Accelerometer and Magnetometer sensors in addition 
+ * to the Roll and Pitch values of the device's orientation in degrees.
+ */
+class SensorData {
+    public acc: number[];
+    public mag: number[];
+    public roll: number;
+    public pitch: number;
+
+    constructor() {
+        this.acc = [0, 0, 0];
+        this.mag = [0, 0, 0];
+        this.pitch = 0;
+        this.roll = 0;
+    }
+}
+
 function vector(...xs: number[]): ell.DoubleVector {
     const d = new ell.DoubleVector();
     xs.forEach(i => d.add(i));
@@ -592,6 +627,30 @@ function initSocketServer(wsPort: number, hostname: string) {
         ellSocket.onmessage = function (event: any) {
             console.log(event.data);
             ellSocket.send(event.data);
+
+            let recDataList = JSON.parse(event.data) as RecordedData[];
+
+            // Create predictors to train the received data:
+            let pred = new ell.ELL_MulticlassDTWPredictor();
+
+            for (let i = 0; i < recDataList.length; i++) {
+                // Create vectorvector of the recordedDataList - ONLY accelerometer:
+                let recDataVec = vectorvector();
+
+                for (let j = 0; j < recDataList[i].rawData.length; j++) {
+                    recDataVec.add(vector(recDataList[i].rawData[j].acc[0],
+                                                  recDataList[i].rawData[j].acc[1],
+                                                  recDataList[i].rawData[j].acc[2]));
+                }
+
+                let recDataProto = new ell.ELL_DTWPrototype(recDataVec);
+                pred.AddPrototype(recDataList[i].labelNum, recDataProto);
+            }
+
+            let model = new ell.ELL_Model();
+            let modelBuilder = new ell.ELL_ModelBuilder();
+
+
         };
         ellSocket.onclose = function (event: any) {
             console.log('ell socket connection closed')

@@ -1,3 +1,5 @@
+/// <reference path="../../built/pxtlib.d.ts"/>
+
 import * as React from "react";
 import * as ReactDOM from "react-dom";
 import * as data from "./data";
@@ -5,6 +7,8 @@ import * as sui from "./sui";
 import * as pkg from "./package";
 import * as blocks from "./blocks"
 import * as hidbridge from "./hidbridge";
+
+import Cloud = pxt.Cloud;
 
 const d3 = require("d3");
 
@@ -88,18 +92,8 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
         this.state = {
             visible: false
         }
-    }
 
-    hide() {
-        this.setState({ visible: false });
-    }
-
-    show() {
-        this.setState({ visible: true });
-
-        this.initialized = true;
-
-        d3.select("#viz").append("span").attr("id", "serial_span");
+        recordedDataList = [];
 
         // assign events to capture if recording or not
         window.onkeydown = (e: any) => {
@@ -113,8 +107,95 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
             if (e.keyCode == 32)
                 this.isRecording = false;
         };
+    }
 
-        recordedDataList = [];
+    drawRecordedData(index: number) {
+        let newSVG = d3.select("#viz")
+                            .append("svg")
+                            .attr("width", 150)
+                            .attr("height", 300);
+
+        // Initialize "g" elements in the svg that will contain other graphical elements based on 
+        // the number of variables that will be visualized at every time point.
+        let newPoints = newSVG.selectAll("g")
+                            .data(recordedDataList[index].rawData)
+                            .enter()
+                            .append("g");
+
+        // TODO: turn this into a function?
+        // First dimension:
+        newPoints.append("line")
+            .attr("x1", (d: SensorData, i: any) => {
+                return i;
+            })
+            .attr("y1", (d: SensorData, i: any) => {
+                return Math.abs(recordedDataList[index].rawData[i].acc[0] * (100 / 1024));
+            })
+            .attr("x2", (d: SensorData, i: any) => {
+                return (i + 1);
+            })
+            .attr("y2", (d: SensorData, i: any) => {
+                if (i + 1 < recordedDataList[index].rawData.length)
+                    return Math.abs(recordedDataList[index].rawData[i + 1].acc[0] * (100 / 1024));
+                else if (i + 1 == recordedDataList[index].rawData.length)
+                    return Math.abs(recordedDataList[index].rawData[i - 1].acc[0] * (100 / 1024));
+                else
+                    return 0;
+            })
+            .attr("stroke", "red")
+            .attr("stroke-width", 1);
+
+        // Second dimension:
+        newPoints.append("line")
+            .attr("x1", (d: SensorData, i: any) => {
+                return i;
+            })
+            .attr("y1", (d: SensorData, i: any) => {
+                return Math.abs(recordedDataList[index].rawData[i].acc[1] * (100 / 1024));
+            })
+            .attr("x2", (d: SensorData, i: any) => {
+                return (i + 1);
+            })
+            .attr("y2", (d: SensorData, i: any) => {
+                if (i + 1 < recordedDataList[index].rawData.length)
+                    return Math.abs(recordedDataList[index].rawData[i + 1].acc[1] * (100 / 1024));
+                else if (i + 1 == recordedDataList[index].rawData.length)
+                    return Math.abs(recordedDataList[index].rawData[i - 1].acc[1] * (100 / 1024));
+                else
+                    return 0;
+            })
+            .attr("stroke", "green")
+            .attr("stroke-width", 1);
+
+        // Third dimension:
+        newPoints.append("line")
+            .attr("x1", (d: SensorData, i: any) => {
+                return i;
+            })
+            .attr("y1", (d: SensorData, i: any) => {
+                return Math.abs(recordedDataList[index].rawData[i].acc[2] * (100 / 1024));
+            })
+            .attr("x2", (d: SensorData, i: any) => {
+                return (i + 1);
+            })
+            .attr("y2", (d: SensorData, i: any) => {
+                if (i + 1 < recordedDataList[index].rawData.length)
+                    return Math.abs(recordedDataList[index].rawData[i + 1].acc[2] * (100 / 1024));
+                else if (i + 1 == recordedDataList[index].rawData.length)
+                    return Math.abs(recordedDataList[index].rawData[i - 1].acc[2] * (100 / 1024));
+                else
+                    return 0;
+            })
+            .attr("stroke", "blue")
+            .attr("stroke-width", 1);
+    }
+
+    hide() {
+        this.setState({ visible: false });
+    }
+
+    show() {
+        this.setState({ visible: true });
 
         // initialize the dataset with empty values
         let dataset: SensorData[];
@@ -157,7 +238,7 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
                 else
                     return 0;
             })
-            .attr("stroke", "red")
+            .attr("stroke", "white")
             .attr("stroke-width", 1);
 
         // Second dimension:
@@ -179,7 +260,7 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
                 else
                     return 0;
             })
-            .attr("stroke", "green")
+            .attr("stroke", "white")
             .attr("stroke-width", 1);
 
         // Third dimension:
@@ -201,11 +282,16 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
                 else
                     return 0;
             })
-            .attr("stroke", "blue")
+            .attr("stroke", "white")
             .attr("stroke-width", 1);
 
         d3.select("#viz")
             .append("br");
+
+        // Draw all of the previously recorded data in the current session:
+        for (let i = 0; i < recordedDataList.length; i++) {
+            this.drawRecordedData(i);
+        }
 
 
         if (hidbridge.shouldUse()) {
@@ -215,7 +301,7 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
                         console.log(Util.fromUTF8(Util.uint8ArrayToString(buf)));
 
                         let strBuf: string = Util.fromUTF8(Util.uint8ArrayToString(buf));
-                        document.getElementById("serial_span").innerText = strBuf;
+                        // document.getElementById("serial_span").innerText = strBuf;
 
                         // visualize ACC(x,y,z) to d3: 
                         // pop the oldest value from the visualization queue
@@ -239,7 +325,8 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
                                 return Math.abs(dataset[i].acc[0] * (100 / 1024));
                             else
                                 return 0;
-                        });
+                        })
+                        .attr("stroke", "red");
 
                         y.attr("y1", (d: any, i: any) => {
                             return Math.abs(dataset[i].acc[1] * (100 / 1024));
@@ -251,7 +338,8 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
                                 return Math.abs(dataset[i].acc[1] * (100 / 1024));
                             else
                                 return 0;
-                        });
+                        })
+                        .attr("stroke", "green");
 
                         z.attr("y1", (d: any, i: any) => {
                             return Math.abs(dataset[i].acc[2] * (100 / 1024));
@@ -263,7 +351,8 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
                                 return Math.abs(dataset[i].acc[2] * (100 / 1024));
                             else
                                 return 0;
-                        });
+                        })
+                        .attr("stroke", "blue");
 
                         // record data if the user is holding the space bar:
                     if (this.wasRecording == false && this.isRecording == true) {
@@ -284,84 +373,7 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
                         // JSON.stringify(recordedDataList[recordedDataList.length - 1])
 
                         // visualize the recorded data:
-                        let newSVG = d3.select("#viz")
-                            .append("svg")
-                            .attr("width", 150)
-                            .attr("height", 300);
-
-                        // Initialize "g" elements in the svg that will contain other graphical elements based on 
-                        // the number of variables that will be visualized at every time point.
-                        let newPoints = newSVG.selectAll("g")
-                                            .data(recordedDataList[recordedDataList.length - 1].rawData)
-                                            .enter()
-                                            .append("g");
-
-                        // TODO: turn this into a function?
-                        // First dimension:
-                        newPoints.append("line")
-                            .attr("x1", (d: SensorData, i: any) => {
-                                return i;
-                            })
-                            .attr("y1", (d: SensorData, i: any) => {
-                                return Math.abs(recordedDataList[recordedDataList.length - 1].rawData[i].acc[0] * (100 / 1024));
-                            })
-                            .attr("x2", (d: SensorData, i: any) => {
-                                return (i + 1);
-                            })
-                            .attr("y2", (d: SensorData, i: any) => {
-                                if (i + 1 < recordedDataList[recordedDataList.length - 1].rawData.length)
-                                    return Math.abs(recordedDataList[recordedDataList.length - 1].rawData[i + 1].acc[0] * (100 / 1024));
-                                else if (i + 1 == recordedDataList[recordedDataList.length - 1].rawData.length)
-                                    return Math.abs(recordedDataList[recordedDataList.length - 1].rawData[i - 1].acc[0] * (100 / 1024));
-                                else
-                                    return 0;
-                            })
-                            .attr("stroke", "red")
-                            .attr("stroke-width", 1);
-
-                        // Second dimension:
-                        newPoints.append("line")
-                            .attr("x1", (d: SensorData, i: any) => {
-                                return i;
-                            })
-                            .attr("y1", (d: SensorData, i: any) => {
-                                return Math.abs(recordedDataList[recordedDataList.length - 1].rawData[i].acc[1] * (100 / 1024));
-                            })
-                            .attr("x2", (d: SensorData, i: any) => {
-                                return (i + 1);
-                            })
-                            .attr("y2", (d: SensorData, i: any) => {
-                                if (i + 1 < recordedDataList[recordedDataList.length - 1].rawData.length)
-                                    return Math.abs(recordedDataList[recordedDataList.length - 1].rawData[i + 1].acc[1] * (100 / 1024));
-                                else if (i + 1 == recordedDataList[recordedDataList.length - 1].rawData.length)
-                                    return Math.abs(recordedDataList[recordedDataList.length - 1].rawData[i - 1].acc[1] * (100 / 1024));
-                                else
-                                    return 0;
-                            })
-                            .attr("stroke", "green")
-                            .attr("stroke-width", 1);
-
-                        // Third dimension:
-                        newPoints.append("line")
-                            .attr("x1", (d: SensorData, i: any) => {
-                                return i;
-                            })
-                            .attr("y1", (d: SensorData, i: any) => {
-                                return Math.abs(recordedDataList[recordedDataList.length - 1].rawData[i].acc[2] * (100 / 1024));
-                            })
-                            .attr("x2", (d: SensorData, i: any) => {
-                                return (i + 1);
-                            })
-                            .attr("y2", (d: SensorData, i: any) => {
-                                if (i + 1 < recordedDataList[recordedDataList.length - 1].rawData.length)
-                                    return Math.abs(recordedDataList[recordedDataList.length - 1].rawData[i + 1].acc[2] * (100 / 1024));
-                                else if (i + 1 == recordedDataList[recordedDataList.length - 1].rawData.length)
-                                    return Math.abs(recordedDataList[recordedDataList.length - 1].rawData[i - 1].acc[2] * (100 / 1024));
-                                else
-                                    return 0;
-                            })
-                            .attr("stroke", "blue")
-                            .attr("stroke-width", 1);
+                        this.drawRecordedData(recordedDataList.length - 1);
                     }
 
                     this.wasRecording = this.isRecording;
@@ -369,7 +381,40 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
                     }
                 });
         }
-        
+
+        d3.select("#sendToTrain_btn").on("click", () => {
+            // Make sure that we're running on localhost
+            if (!pxt.appTarget.serial || !Cloud.isLocalHost() || !Cloud.localToken)
+                return;
+
+            pxt.debug('initializing ell pipe');
+            let ws = new WebSocket(`ws://localhost:${pxt.options.wsPort}/${Cloud.localToken}/ell`);
+            ws.onopen = (ev) => {
+                pxt.debug('ell-ws: socket opened');
+
+                ws.send(JSON.stringify(recordedDataList));
+            }
+            ws.onclose = (ev) => {
+                pxt.debug('ell-ws: socket closed')
+            }
+            ws.onmessage = (ev) => {
+                try {
+                    console.log(ev.data);
+                }
+                catch (e) {
+                    pxt.debug('unknown message: ' + ev.data);
+                }
+            }
+        });
+
+        d3.select("#save_btn").on("click", () => {
+            const f2 = pkg.mainEditorPkg().setFile("newFile.json", JSON.stringify(recordedDataList));
+            // make it so that if the user clicks on the file, it would show up in the gesture toolbox
+        });
+
+        d3.select("#download_btn").on("click", () => {
+            download("recordedData.json", JSON.stringify(recordedDataList));
+        });
     }
 
     shouldComponentUpdate(nextProps: ISettingsProps, nextState: GestureToolboxState, nextContext: any): boolean {
@@ -385,6 +430,9 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
                 closeIcon={true}
                 closeOnDimmerClick closeOnDocumentClick
                 >
+                <button type="button" id="sendToTrain_btn">Train</button>
+                <button type="button" id="save_btn">Save JSON</button>
+                <button type="button" id="download_btn">Download JSON</button>
                 <div id="viz" className="ui content">
                 </div>
 
