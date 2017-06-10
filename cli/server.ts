@@ -1,5 +1,6 @@
 /// <reference path="../typings/globals/node/index.d.ts"/>
 
+import * as ell from 'ell';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as http from 'http';
@@ -25,6 +26,18 @@ let docsDir = ""
 let packagedDir = ""
 let localHexDir = path.join("built", "hexcache");
 let electronHandlers: pxt.Map<ElectronHandler> = {};
+
+function vector(...xs: number[]): ell.DoubleVector {
+    const d = new ell.DoubleVector();
+    xs.forEach(i => d.add(i));
+    return d;
+}
+
+function vectorvector(...vs: ell.DoubleVector[]): ell.DoubleVectorVector {
+    const d = new ell.DoubleVectorVector();
+    vs.forEach(v => d.add(v));
+    return d;
+}
 
 function setupDocfilesdirs() {
     docfilesdirs = [
@@ -368,6 +381,7 @@ export function expandDocFileTemplate(name: string) {
 
 let wsSerialClients: WebSocket[] = [];
 let electronSocket: WebSocket = null;
+let ellSocket: WebSocket = null;
 let webappReady = false;
 let electronPendingMessages: ElectronMessage[] = [];
 
@@ -573,6 +587,22 @@ function initSocketServer(wsPort: number, hostname: string) {
         };
     }
 
+    function startELL(request: any, socket: any, body: any) {
+        ellSocket = new WebSocket(request, socket, body);
+        ellSocket.onmessage = function (event: any) {
+            console.log(event.data);
+            ellSocket.send(event.data);
+        };
+        ellSocket.onclose = function (event: any) {
+            console.log('ell socket connection closed')
+            ellSocket = null;
+        };
+        ellSocket.onerror = function () {
+            console.log('ell socket connection closed')
+            ellSocket = null;
+        };
+    }
+
     let wsserver = http.createServer();
     wsserver.on('upgrade', function (request: http.IncomingMessage, socket: WebSocket, body: any) {
         try {
@@ -586,6 +616,8 @@ function initSocketServer(wsPort: number, hostname: string) {
                     startHID(request, socket, body);
                 else if (request.url == "/" + serveOptions.localToken + "/electron")
                     startElectronChannel(request, socket, body);
+                else if (request.url == "/" + serveOptions.localToken + "/ell")
+                    startELL(request, socket, body);
                 else console.log('refused connection at ' + request.url);
             }
         } catch (e) {

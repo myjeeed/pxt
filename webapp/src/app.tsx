@@ -1791,6 +1791,31 @@ function initLogin() {
     }
 }
 
+function initELL() {
+    // Make sure that we're running on localhost
+    if (!pxt.appTarget.serial || !Cloud.isLocalHost() || !Cloud.localToken)
+        return;
+
+    pxt.debug('initializing ell pipe');
+    let ws = new WebSocket(`ws://localhost:${pxt.options.wsPort}/${Cloud.localToken}/ell`);
+    ws.onopen = (ev) => {
+        pxt.debug('ell-ws: socket opened');
+
+        ws.send(JSON.stringify({"name" : "majeed", "lastName" : "kazemitabaar"}));
+    }
+    ws.onclose = (ev) => {
+        pxt.debug('ell-ws: socket closed')
+    }
+    ws.onmessage = (ev) => {
+        try {
+            console.log(ev.data);
+        }
+        catch (e) {
+            pxt.debug('unknown message: ' + ev.data);
+        }
+    }
+}
+
 function initSerial() {
 
     // Temporarily turned off simulator's serial port
@@ -2147,6 +2172,7 @@ $(document).ready(() => {
         })
         .then(state => state ? theEditor.setState(state) : undefined)
         .then(() => {
+            initELL();
             initSerial();
             initScreenshots();
             initHashchange();
