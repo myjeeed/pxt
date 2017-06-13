@@ -61,6 +61,7 @@ class RecordedData {
     public startTime: number;
     public endTime: number;
     public svg: any;    // points to the svg containing the visualization of that recorded data.
+    public video: any;
 
     constructor(_labelNum: number) {
         this.rawData = [];
@@ -130,6 +131,7 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
     isRecording: boolean = false;
     wasRecording: boolean = false;
     initialized: boolean = false;
+    localMediaStream: any;
 
     constructor(props: ISettingsProps) {
         super(props);
@@ -194,6 +196,7 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
 
     hide() {
         this.setState({ visible: false });
+        this.localMediaStream.stop();
     }
 
     show() {
@@ -211,6 +214,7 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
                     let video = document.querySelector('video') as any;
                     video.autoplay = true;
                     video.src = window.URL.createObjectURL(stream);
+                    this.localMediaStream = stream;
 
                     mediaRecorder = new MediaStreamRecorder(stream);
                     mediaRecorder.mimeType = 'video/mp4';
@@ -221,6 +225,8 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
                             .attr("src", window.URL.createObjectURL(blob))
                             .attr("controls", "controls")
                             .attr("width", "200px");
+
+                        recordedDataList[recordedDataList.length - 1].video = blob;
                     };
                 }, () => {
                     console.error('media error');
@@ -306,6 +312,11 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
         for (let i = 0; i < recordedDataList.length; i++) {
             this.drawRecDataSmoothed(i);
             // TODO: Display the videos after re-opening the gesture toolbox
+            // add video element to be played later
+            d3.select("#viz").append("video")
+                .attr("src", window.URL.createObjectURL(recordedDataList[i].video))
+                .attr("controls", "controls")
+                .attr("width", "200px");
         }
 
         if (hidbridge.shouldUse()) {
@@ -479,7 +490,7 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
 
         return (
             <sui.Modal open={this.state.visible} className="gesture_toolbox" header={lf("Gestures") } size="fullscreen"
-                onClose={() => this.setState({ visible: false }) } dimmer={true}
+                onClose={() => this.hide() } dimmer={true}
                 closeIcon={true}
                 closeOnDimmerClick closeOnDocumentClick
                 >
