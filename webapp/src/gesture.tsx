@@ -340,7 +340,26 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
                         newData.time = dataset.length - 1;
 
                         let strBufArray = strBuf.split(" ");
-                        newData.acc = [parseInt(strBufArray[0]), parseInt(strBufArray[1]), parseInt(strBufArray[2])];
+
+                        // populate members of newData (type: SensorData) with the values received from the device
+                        for (let i = 0; i < strBufArray.length; i++) {
+                            if (strBufArray[i] == "ACC") {
+                                newData.acc = [parseInt(strBufArray[i + 1]), parseInt(strBufArray[i + 2]), parseInt(strBufArray[i + 3])];
+
+                                i += 3;
+                            }
+                            else if (strBufArray[i] == "ROT") {
+                                newData.pitch = parseInt(strBufArray[i + 1]);
+                                newData.roll = parseInt(strBufArray[i + 2]);
+
+                                i += 2;
+                            }
+                            else if (strBufArray[i] == "MAG") { // Not available in Adafruit's Circuit Playground Express
+                                newData.mag = [parseInt(strBufArray[i + 1]), parseInt(strBufArray[i + 2]), parseInt(strBufArray[i + 3])];
+
+                                i += 3;
+                            }
+                        }
 
                         dataset.push(newData);
 
