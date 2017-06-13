@@ -41,6 +41,16 @@ type IAppProps = pxt.editor.IAppProps;
 type IAppState = pxt.editor.IAppState;
 type IProjectView = pxt.editor.IProjectView;
 
+class Point {
+    public X: number;
+    public Y: number;
+
+    constructor(x: number, y: number) {
+        this.X = x;
+        this.Y = y;
+    }
+}
+
 /** 
  * Keeps a record of all the information for a gesture sample, including SensorData and it's Label. 
  */
@@ -74,6 +84,7 @@ class SensorData {
         this.mag = [0, 0, 0];
         this.pitch = 0;
         this.roll = 0;
+        this.time = 0;
     }
 }
 
@@ -83,6 +94,19 @@ export interface GestureToolboxState {
 
 let recordedDataList: RecordedData[];
 let max_x_items = 500;
+const GRAPH_HEIGHT = 30;
+const MAX_ACC_VAL = 1023;
+const Y_OFFSET = 25;
+const Y_DISTANCE = 100;
+
+let smoothedLine = d3.line()
+    .x((d: Point) => {
+        return d.X;
+    })
+    .y((d: Point) => {
+        return d.Y;
+    })
+    .curve(d3.curveBundle.beta(0.9));
 
 export class GestureToolbox extends data.Component<ISettingsProps, GestureToolboxState> {
     isRecording: boolean = false;
@@ -199,57 +223,36 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
                             .attr("height", 300);
 
         // add time (x-axis) to the SensorData
-
         for (let i = 0; i < recordedDataList[index].rawData.length; i++) {
             recordedDataList[index].rawData[i].time = i;
         }
 
-        let lineFunctionX = d3.line()
-            .x((d: SensorData) => {
-                return d.time;
-            })
-            .y((d: SensorData) => {
-                return d.acc[0] * (30 / 1023) + 25;
-            })
-            .curve(d3.curveBundle.beta(0.8));
-
         newSVG.append("path")
-            .attr("d", lineFunctionX(recordedDataList[index].rawData))
+            .attr("d", smoothedLine(recordedDataList[index].rawData.map(
+                (d: SensorData) => {
+                    return new Point(d.time, d.acc[0] * (GRAPH_HEIGHT / MAX_ACC_VAL) + Y_OFFSET);
+                })))
             .attr("stroke", "red")
-            .attr("stroke-width", 1)
+            .attr("stroke-width", 2)
             .attr("fill", "none");
 
-        let lineFunctionY = d3.line()
-            .x((d: SensorData) => {
-                return d.time;
-            })
-            .y((d: SensorData) => {
-                return d.acc[1] * (30 / 1023) + 125;
-            })
-            .curve(d3.curveBundle.beta(0.8));
-
         newSVG.append("path")
-            .attr("d", lineFunctionY(recordedDataList[index].rawData))
+            .attr("d", smoothedLine(recordedDataList[index].rawData.map(
+                (d: SensorData) => {
+                    return new Point(d.time, d.acc[1] * (GRAPH_HEIGHT / MAX_ACC_VAL) + Y_OFFSET + Y_DISTANCE);
+                })))
             .attr("stroke", "green")
-            .attr("stroke-width", 1)
+            .attr("stroke-width", 2)
             .attr("fill", "none");
-
-        let lineFunctionZ = d3.line()
-            .x((d: SensorData) => {
-                return d.time;
-            })
-            .y((d: SensorData) => {
-                return d.acc[2] * (30 / 1023) + 225;
-            })
-            .curve(d3.curveBundle.beta(0.8));
 
         newSVG.append("path")
-            .attr("d", lineFunctionZ(recordedDataList[index].rawData))
+            .attr("d", smoothedLine(recordedDataList[index].rawData.map(
+                (d: SensorData) => {
+                    return new Point(d.time, d.acc[2] * (GRAPH_HEIGHT / MAX_ACC_VAL) + Y_OFFSET + Y_DISTANCE * 2);
+                })))
             .attr("stroke", "blue")
-            .attr("stroke-width", 1)
+            .attr("stroke-width", 2)
             .attr("fill", "none");
-
-        // TODO: 
     }
 
     hide() {
@@ -259,37 +262,11 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
     show() {
         this.setState({ visible: true });
 
-        // initialize web-cam:
-        // Elegent solution to preview webcam video:
-
-        // let errorCallback = function(e: any) {
-        //     console.log('Reeeejected!', e);
-        // };
-
-        // let nav = navigator as any;
-
-        // nav.getUserMedia  = nav.getUserMedia || nav.webkitGetUserMedia ||
-        //                   nav.mozGetUserMedia || nav.msGetUserMedia;
-
-        // let streamRecorder: any;
-
-        // if (nav.getUserMedia) {
-        //     nav.getUserMedia({audio: false, video: true}, (stream: any) => {
-        //         let video = document.querySelector('video') as any;
-        //         video.autoplay = true;
-        //         video.src = window.URL.createObjectURL(stream);
-        //     }, errorCallback);
-        // }
-        // else {
-        //     alert("not supported");
-        // }
-
         let nav = navigator as any;
+        let mediaRecorder: any;
 
         nav.getUserMedia  = nav.getUserMedia || nav.webkitGetUserMedia ||
                             nav.mozGetUserMedia || nav.msGetUserMedia;
-        
-        let mediaRecorder: any;
 
         if (nav.getUserMedia) {
             nav.getUserMedia({audio: false, video: true},
@@ -297,34 +274,21 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
                     let video = document.querySelector('video') as any;
                     video.autoplay = true;
                     video.src = window.URL.createObjectURL(stream);
-                    
+
                     mediaRecorder = new MediaStreamRecorder(stream);
                     mediaRecorder.mimeType = 'video/mp4';
-                    
-                    mediaRecorder.ondataavailable = function (blob: any) {
-                        // POST/PUT "Blob" using FormData/XHR2
-                        let blobURL = URL.createObjectURL(blob);
-                        console.log('<a href="' + blobURL + '">' + blobURL + '</a>');
 
+                    mediaRecorder.ondataavailable = function (blob: any) {
                         // add video element to be played later
                         d3.select("#viz").append("video")
                             .attr("src", window.URL.createObjectURL(blob))
                             .attr("controls", "controls")
                             .attr("width", "200px");
                     };
-
-                    // mediaRecorder.ondataavailable = function (blob: any) {
-                    //     // POST/PUT "Blob" using FormData/XHR2 
-                    //     let blobURL = URL.createObjectURL(blob);
-                    //     // document.write('<a href="' + blobURL + '">' + blobURL + '</a>');
-                    //     mediaRecorder.save();
-                    // };
                 }, () => {
                     console.error('media error');
                 });
         }
-
-        
 
 
         // initialize the dataset with empty values
@@ -333,87 +297,45 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
 
         for (let i = 0; i < max_x_items; i++) {
             let data = new SensorData();
-
+            data.time = i;
             dataset.push(data);
         }
 
-        let svg = d3.select("#viz")
+        let mainSVG = d3.select("#viz")
             .append("svg")
             .attr("width", 550)
-            .attr("height", 300);
+            .attr("height", 350);
 
-        // Initialize "g" elements in the svg that will contain other graphical elements based on 
-        // the number of variables that will be visualized at every time point.
-        let points = svg.selectAll("g")
-                            .data(dataset)
-                            .enter()
-                            .append("g");
+        mainSVG.append("path")
+            .attr("d", smoothedLine(dataset.map(
+                (d: SensorData) => {
+                    return new Point(d.time, d.acc[0] * (GRAPH_HEIGHT / MAX_ACC_VAL) + Y_OFFSET);
+                })))
+            .attr("class", "acc_x")
+            .attr("stroke", "red")
+            .attr("stroke-width", 2)
+            .attr("fill", "none");
 
-        // First dimension:
-        let x = points.append("line")
-            .attr("x1", (d: SensorData, i: any) => {
-                return i;
-            })
-            .attr("y1", (d: SensorData, i: any) => {
-                return  (dataset[i].acc[0] * (30 / 1024) + 25);
-            })
-            .attr("x2", (d: SensorData, i: any) => {
-                return (i + 1);
-            })
-            .attr("y2", (d: SensorData, i: any) => {
-                if (i + 1 < dataset.length)
-                    return  (dataset[i + 1].acc[0] * (30 / 1024) + 25);
-                else if (i + 1 == dataset.length)
-                    return  (dataset[i].acc[0] * (30 / 1024) + 25);
-                else
-                    return 0;
-            })
-            .attr("stroke", "white")
-            .attr("stroke-width", 1);
+        mainSVG.append("path")
+            .attr("d", smoothedLine(dataset.map(
+                (d: SensorData) => {
+                    return new Point(d.time, d.acc[1] * (GRAPH_HEIGHT / MAX_ACC_VAL) + Y_OFFSET + Y_DISTANCE);
+                })))
+            .attr("class", "acc_y")
+            .attr("stroke", "green")
+            .attr("stroke-width", 2)
+            .attr("fill", "none");
 
-        // Second dimension:
-        let y = points.append("line")
-            .attr("x1", (d: SensorData, i: any) => {
-                return i;
-            })
-            .attr("y1", (d: SensorData, i: any) => {
-                return  (dataset[i].acc[1] * ( 30 / 1024) + 125);
-            })
-            .attr("x2", (d: SensorData, i: any) => {
-                return (i + 1);
-            })
-            .attr("y2", (d: SensorData, i: any) => {
-                if (i + 1 < dataset.length)
-                    return  (dataset[i + 1].acc[1] * ( 30 / 1024) + 125);
-                else if (i + 1 == dataset.length)
-                    return  (dataset[i].acc[1] * ( 30 / 1024) + 125);
-                else
-                    return 0;
-            })
-            .attr("stroke", "white")
-            .attr("stroke-width", 1);
+        mainSVG.append("path")
+            .attr("d", smoothedLine(dataset.map(
+                (d: SensorData) => {
+                    return new Point(d.time, d.acc[2] * (GRAPH_HEIGHT / MAX_ACC_VAL) + Y_OFFSET + Y_DISTANCE * 2);
+                })))
+            .attr("class", "acc_z")
+            .attr("stroke", "blue")
+            .attr("stroke-width", 2)
+            .attr("fill", "none");
 
-        // Third dimension:
-        let z = points.append("line")
-            .attr("x1", (d: SensorData, i: any) => {
-                return i;
-            })
-            .attr("y1", (d: SensorData, i: any) => {
-                return  (dataset[i].acc[2] * ( 30 / 1024) + 225);
-            })
-            .attr("x2", (d: SensorData, i: any) => {
-                return (i + 1);
-            })
-            .attr("y2", (d: SensorData, i: any) => {
-                if (i + 1 < dataset.length)
-                    return  (dataset[i + 1].acc[2] * ( 30 / 1024) + 225);
-                else if (i + 1 == dataset.length)
-                    return  (dataset[i].acc[2] * ( 30 / 1024) + 225);
-                else
-                    return 0;
-            })
-            .attr("stroke", "white")
-            .attr("stroke-width", 1);
 
         d3.select("#viz")
             .append("br");
@@ -421,8 +343,8 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
         // Draw all of the previously recorded data in the current session:
         for (let i = 0; i < recordedDataList.length; i++) {
             this.drawRecordedDataSmoothed(i);
+            // TODO: Display the videos after re-opening the gesture toolbox
         }
-
 
         if (hidbridge.shouldUse()) {
             hidbridge.initAsync()
@@ -436,82 +358,64 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
                         // visualize ACC(x,y,z) to d3: 
                         // pop the oldest value from the visualization queue
                         dataset.shift();
+                        dataset.forEach((element: SensorData) => {
+                            element.time--;
+                        })
 
                         // create a new SensorData instance based on the serial port values
                         let newData = new SensorData();
+                        newData.time = dataset.length - 1;
 
                         let strBufArray = strBuf.split(" ");
                         newData.acc = [parseInt(strBufArray[0]), parseInt(strBufArray[1]), parseInt(strBufArray[2])];
 
                         dataset.push(newData);
 
-                        x.attr("y1", (d: any, i: any) => {
-                            return  (dataset[i].acc[0] * ( 30 / 1024) + 25);
-                        })
-                        .attr("y2", (d: any, i: any) => {
-                            if (i + 1 < dataset.length)
-                                return  (dataset[i + 1].acc[0] * ( 30 / 1024) + 25);
-                            else if (i + 1 == dataset.length)
-                                return  (dataset[i].acc[0] * ( 30 / 1024) + 25);
-                            else
-                                return 0;
-                        })
-                        .attr("stroke", "red");
+                        mainSVG.select(".acc_x")
+                            .attr("d", smoothedLine(dataset.map(
+                            (d: SensorData) => {
+                                return new Point(d.time, d.acc[0] * (GRAPH_HEIGHT / MAX_ACC_VAL) + Y_OFFSET);
+                            })));
 
-                        y.attr("y1", (d: any, i: any) => {
-                            return  (dataset[i].acc[1] * ( 30 / 1024) + 125);
-                        })
-                        .attr("y2", (d: any, i: any) => {
-                            if (i + 1 < dataset.length)
-                                return  (dataset[i + 1].acc[1] * ( 30 / 1024) + 125);
-                            else if (i + 1 == dataset.length)
-                                return  (dataset[i].acc[1] * ( 30 / 1024) + 125);
-                            else
-                                return 0;
-                        })
-                        .attr("stroke", "green");
+                        mainSVG.select(".acc_y")
+                            .attr("d", smoothedLine(dataset.map(
+                            (d: SensorData) => {
+                                return new Point(d.time, d.acc[1] * (GRAPH_HEIGHT / MAX_ACC_VAL) + Y_OFFSET + Y_DISTANCE);
+                            })));
 
-                        z.attr("y1", (d: any, i: any) => {
-                            return  (dataset[i].acc[2] * ( 30 / 1024) + 225);
-                        })
-                        .attr("y2", (d: any, i: any) => {
-                            if (i + 1 < dataset.length)
-                                return  (dataset[i + 1].acc[2] * ( 30 / 1024) + 225);
-                            else if (i + 1 == dataset.length)
-                                return  (dataset[i].acc[2] * ( 30 / 1024) + 225);
-                            else
-                                return 0;
-                        })
-                        .attr("stroke", "blue");
+                        mainSVG.select(".acc_z")
+                            .attr("d", smoothedLine(dataset.map(
+                            (d: SensorData) => {
+                                return new Point(d.time, d.acc[2] * (GRAPH_HEIGHT / MAX_ACC_VAL) + Y_OFFSET + Y_DISTANCE * 2);
+                            })));
 
                         // record data if the user is holding the space bar:
-                    if (this.wasRecording == false && this.isRecording == true) {
-                        // start recording sensor data:
-                        let newRecord = new RecordedData(1);
-                        recordedDataList.push(newRecord);
-                        recordedDataList[recordedDataList.length - 1].startTime = Date.now();
-                        recordedDataList[recordedDataList.length - 1].rawData.push(newData);
+                        if (this.wasRecording == false && this.isRecording == true) {
+                            // start recording sensor data:
+                            let newRecord = new RecordedData(1);
+                            recordedDataList.push(newRecord);
+                            recordedDataList[recordedDataList.length - 1].startTime = Date.now();
+                            recordedDataList[recordedDataList.length - 1].rawData.push(newData);
 
-                        // start recording webcam video:
-                        mediaRecorder.start(60 * 1000);
-                    }
-                    else if (this.wasRecording == true && this.isRecording == true) {
-                        // continue recording:
-                        recordedDataList[recordedDataList.length - 1].rawData.push(newData);
-                    }
-                    else if (this.wasRecording == true && this.isRecording == false) {
-                        // stop recording sensor data:
-                        recordedDataList[recordedDataList.length - 1].endTime = Date.now();
+                            // start recording webcam video:
+                            mediaRecorder.start(60 * 1000);
+                        }
+                        else if (this.wasRecording == true && this.isRecording == true) {
+                            // continue recording:
+                            recordedDataList[recordedDataList.length - 1].rawData.push(newData);
+                        }
+                        else if (this.wasRecording == true && this.isRecording == false) {
+                            // stop recording sensor data:
+                            recordedDataList[recordedDataList.length - 1].endTime = Date.now();
 
-                        // stop recording webcam video:
-                        mediaRecorder.stop();
+                            // stop recording webcam video:
+                            mediaRecorder.stop();
 
-                        // visualize the recorded data:
-                        this.drawRecordedDataSmoothed(recordedDataList.length - 1);
-                    }
+                            // visualize the recorded data:
+                            this.drawRecordedDataSmoothed(recordedDataList.length - 1);
+                        }
 
-                    this.wasRecording = this.isRecording;
-
+                        this.wasRecording = this.isRecording;
                     }
                 });
         }
