@@ -86,6 +86,24 @@ class SensorData {
         this.roll = 0;
         this.time = 0;
     }
+
+    public Clone() {
+        let s = new SensorData();
+
+        s.acc[0] = this.acc[0];
+        s.acc[1] = this.acc[1];
+        s.acc[2] = this.acc[2];
+
+        s.mag[0] = this.mag[0];
+        s.mag[1] = this.mag[1];
+        s.mag[2] = this.mag[2];
+
+        s.roll = this.roll;
+        s.pitch = this.pitch;
+        s.time = this.time;
+
+        return s;
+    }
 }
 
 export interface GestureToolboxState {
@@ -93,7 +111,7 @@ export interface GestureToolboxState {
 }
 
 let recordedDataList: RecordedData[];
-let max_x_items = 500;
+let MAX_GRAPH_SAMPLES = 450;
 const GRAPH_HEIGHT = 30;
 const MAX_ACC_VAL = 1023;
 const Y_OFFSET = 25;
@@ -106,7 +124,7 @@ let smoothedLine = d3.line()
     .y((d: Point) => {
         return d.Y;
     })
-    .curve(d3.curveBundle.beta(0.9));
+    .curve(d3.curveBasis);
 
 export class GestureToolbox extends data.Component<ISettingsProps, GestureToolboxState> {
     isRecording: boolean = false;
@@ -135,88 +153,7 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
         };
     }
 
-    drawRecordedData(index: number) {
-        let newSVG = d3.select("#viz")
-                            .append("svg")
-                            .attr("width", 150)
-                            .attr("height", 300);
-
-        // Initialize "g" elements in the svg that will contain other graphical elements based on 
-        // the number of variables that will be visualized at every time point.
-        let newPoints = newSVG.selectAll("g")
-                            .data(recordedDataList[index].rawData)
-                            .enter()
-                            .append("g");
-
-        // TODO: turn this into a function?
-        // First dimension:
-        newPoints.append("line")
-            .attr("x1", (d: SensorData, i: any) => {
-                return i;
-            })
-            .attr("y1", (d: SensorData, i: any) => {
-                return  (recordedDataList[index].rawData[i].acc[0] * ( 30 / 1024) + 25);
-            })
-            .attr("x2", (d: SensorData, i: any) => {
-                return (i + 1);
-            })
-            .attr("y2", (d: SensorData, i: any) => {
-                if (i + 1 < recordedDataList[index].rawData.length)
-                    return  (recordedDataList[index].rawData[i + 1].acc[0] * ( 30 / 1024) + 25);
-                else if (i + 1 == recordedDataList[index].rawData.length)
-                    return  (recordedDataList[index].rawData[i - 1].acc[0] * ( 30 / 1024) + 25);
-                else
-                    return 0;
-            })
-            .attr("stroke", "red")
-            .attr("stroke-width", 1);
-
-        // Second dimension:
-        newPoints.append("line")
-            .attr("x1", (d: SensorData, i: any) => {
-                return i;
-            })
-            .attr("y1", (d: SensorData, i: any) => {
-                return  (recordedDataList[index].rawData[i].acc[1] * ( 30 / 1024) + 125);
-            })
-            .attr("x2", (d: SensorData, i: any) => {
-                return (i + 1);
-            })
-            .attr("y2", (d: SensorData, i: any) => {
-                if (i + 1 < recordedDataList[index].rawData.length)
-                    return  (recordedDataList[index].rawData[i + 1].acc[1] * ( 30 / 1024) + 125);
-                else if (i + 1 == recordedDataList[index].rawData.length)
-                    return  (recordedDataList[index].rawData[i - 1].acc[1] * ( 30 / 1024) + 125);
-                else
-                    return 0;
-            })
-            .attr("stroke", "green")
-            .attr("stroke-width", 1);
-
-        // Third dimension:
-        newPoints.append("line")
-            .attr("x1", (d: SensorData, i: any) => {
-                return i;
-            })
-            .attr("y1", (d: SensorData, i: any) => {
-                return  (recordedDataList[index].rawData[i].acc[2] * ( 30 / 1024) + 225);
-            })
-            .attr("x2", (d: SensorData, i: any) => {
-                return (i + 1);
-            })
-            .attr("y2", (d: SensorData, i: any) => {
-                if (i + 1 < recordedDataList[index].rawData.length)
-                    return  (recordedDataList[index].rawData[i + 1].acc[2] * ( 30 / 1024) + 225);
-                else if (i + 1 == recordedDataList[index].rawData.length)
-                    return  (recordedDataList[index].rawData[i - 1].acc[2] * ( 30 / 1024) + 225);
-                else
-                    return 0;
-            })
-            .attr("stroke", "blue")
-            .attr("stroke-width", 1);
-    }
-
-    drawRecordedDataSmoothed(index: number) {
+    drawRecDataSmoothed(index: number) {
         let newSVG = d3.select("#viz")
                             .append("svg")
                             .attr("width", 150)
@@ -230,7 +167,7 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
         newSVG.append("path")
             .attr("d", smoothedLine(recordedDataList[index].rawData.map(
                 (d: SensorData) => {
-                    return new Point(d.time, d.acc[0] * (GRAPH_HEIGHT / MAX_ACC_VAL) + Y_OFFSET);
+                    return new Point(d.time + 25, d.acc[0] * (GRAPH_HEIGHT / MAX_ACC_VAL) + Y_OFFSET);
                 })))
             .attr("stroke", "red")
             .attr("stroke-width", 2)
@@ -239,7 +176,7 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
         newSVG.append("path")
             .attr("d", smoothedLine(recordedDataList[index].rawData.map(
                 (d: SensorData) => {
-                    return new Point(d.time, d.acc[1] * (GRAPH_HEIGHT / MAX_ACC_VAL) + Y_OFFSET + Y_DISTANCE);
+                    return new Point(d.time + 25, d.acc[1] * (GRAPH_HEIGHT / MAX_ACC_VAL) + Y_OFFSET + Y_DISTANCE);
                 })))
             .attr("stroke", "green")
             .attr("stroke-width", 2)
@@ -248,7 +185,7 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
         newSVG.append("path")
             .attr("d", smoothedLine(recordedDataList[index].rawData.map(
                 (d: SensorData) => {
-                    return new Point(d.time, d.acc[2] * (GRAPH_HEIGHT / MAX_ACC_VAL) + Y_OFFSET + Y_DISTANCE * 2);
+                    return new Point(d.time + 25, d.acc[2] * (GRAPH_HEIGHT / MAX_ACC_VAL) + Y_OFFSET + Y_DISTANCE * 2);
                 })))
             .attr("stroke", "blue")
             .attr("stroke-width", 2)
@@ -295,7 +232,7 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
         let dataset: SensorData[];
         dataset = [];
 
-        for (let i = 0; i < max_x_items; i++) {
+        for (let i = 0; i < MAX_GRAPH_SAMPLES; i++) {
             let data = new SensorData();
             data.time = i;
             dataset.push(data);
@@ -304,12 +241,13 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
         let mainSVG = d3.select("#viz")
             .append("svg")
             .attr("width", 550)
-            .attr("height", 350);
+            .attr("height", 350)
+            .attr("style", "margin: 25px; padding: 25px;");
 
         mainSVG.append("path")
             .attr("d", smoothedLine(dataset.map(
                 (d: SensorData) => {
-                    return new Point(d.time, d.acc[0] * (GRAPH_HEIGHT / MAX_ACC_VAL) + Y_OFFSET);
+                    return new Point(d.time + 25, d.acc[0] * (GRAPH_HEIGHT / MAX_ACC_VAL) + Y_OFFSET);
                 })))
             .attr("class", "acc_x")
             .attr("stroke", "red")
@@ -319,7 +257,7 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
         mainSVG.append("path")
             .attr("d", smoothedLine(dataset.map(
                 (d: SensorData) => {
-                    return new Point(d.time, d.acc[1] * (GRAPH_HEIGHT / MAX_ACC_VAL) + Y_OFFSET + Y_DISTANCE);
+                    return new Point(d.time + 25, d.acc[1] * (GRAPH_HEIGHT / MAX_ACC_VAL) + Y_OFFSET + Y_DISTANCE);
                 })))
             .attr("class", "acc_y")
             .attr("stroke", "green")
@@ -329,12 +267,36 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
         mainSVG.append("path")
             .attr("d", smoothedLine(dataset.map(
                 (d: SensorData) => {
-                    return new Point(d.time, d.acc[2] * (GRAPH_HEIGHT / MAX_ACC_VAL) + Y_OFFSET + Y_DISTANCE * 2);
+                    return new Point(d.time + 25, d.acc[2] * (GRAPH_HEIGHT / MAX_ACC_VAL) + Y_OFFSET + Y_DISTANCE * 2);
                 })))
             .attr("class", "acc_z")
             .attr("stroke", "blue")
             .attr("stroke-width", 2)
             .attr("fill", "none");
+
+        let yScale = d3.scaleLinear()
+            .domain([0, GRAPH_HEIGHT])
+            .range([350, 0]);
+
+        let xScale = d3.scaleLinear()
+            .domain([0, MAX_GRAPH_SAMPLES])
+            .range([0, 500]);
+
+        let xAxis = d3.axisBottom(xScale)
+            .ticks(5);
+
+        let yAxis = d3.axisLeft(yScale)
+            .ticks(6);
+
+        mainSVG.append("g")
+            .attr("class", "x_axis")
+            .attr("transform", "translate(25, 300)")
+            .call(xAxis);
+
+        mainSVG.append("g")
+            .attr("class", "y_axis")
+            .attr("transform", "translate(25, -50)")
+            .call(yAxis);
 
 
         d3.select("#viz")
@@ -342,7 +304,7 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
 
         // Draw all of the previously recorded data in the current session:
         for (let i = 0; i < recordedDataList.length; i++) {
-            this.drawRecordedDataSmoothed(i);
+            this.drawRecDataSmoothed(i);
             // TODO: Display the videos after re-opening the gesture toolbox
         }
 
@@ -374,19 +336,19 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
                         mainSVG.select(".acc_x")
                             .attr("d", smoothedLine(dataset.map(
                             (d: SensorData) => {
-                                return new Point(d.time, d.acc[0] * (GRAPH_HEIGHT / MAX_ACC_VAL) + Y_OFFSET);
+                                return new Point(d.time + 25, d.acc[0] * (GRAPH_HEIGHT / MAX_ACC_VAL) + Y_OFFSET);
                             })));
 
                         mainSVG.select(".acc_y")
                             .attr("d", smoothedLine(dataset.map(
                             (d: SensorData) => {
-                                return new Point(d.time, d.acc[1] * (GRAPH_HEIGHT / MAX_ACC_VAL) + Y_OFFSET + Y_DISTANCE);
+                                return new Point(d.time + 25, d.acc[1] * (GRAPH_HEIGHT / MAX_ACC_VAL) + Y_OFFSET + Y_DISTANCE);
                             })));
 
                         mainSVG.select(".acc_z")
                             .attr("d", smoothedLine(dataset.map(
                             (d: SensorData) => {
-                                return new Point(d.time, d.acc[2] * (GRAPH_HEIGHT / MAX_ACC_VAL) + Y_OFFSET + Y_DISTANCE * 2);
+                                return new Point(d.time + 25, d.acc[2] * (GRAPH_HEIGHT / MAX_ACC_VAL) + Y_OFFSET + Y_DISTANCE * 2);
                             })));
 
                         // record data if the user is holding the space bar:
@@ -395,14 +357,14 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
                             let newRecord = new RecordedData(1);
                             recordedDataList.push(newRecord);
                             recordedDataList[recordedDataList.length - 1].startTime = Date.now();
-                            recordedDataList[recordedDataList.length - 1].rawData.push(newData);
+                            recordedDataList[recordedDataList.length - 1].rawData.push(newData.Clone());
 
                             // start recording webcam video:
                             mediaRecorder.start(60 * 1000);
                         }
                         else if (this.wasRecording == true && this.isRecording == true) {
                             // continue recording:
-                            recordedDataList[recordedDataList.length - 1].rawData.push(newData);
+                            recordedDataList[recordedDataList.length - 1].rawData.push(newData.Clone());
                         }
                         else if (this.wasRecording == true && this.isRecording == false) {
                             // stop recording sensor data:
@@ -412,7 +374,7 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
                             mediaRecorder.stop();
 
                             // visualize the recorded data:
-                            this.drawRecordedDataSmoothed(recordedDataList.length - 1);
+                            this.drawRecDataSmoothed(recordedDataList.length - 1);
                         }
 
                         this.wasRecording = this.isRecording;
@@ -471,7 +433,7 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
 
                     // visualize the recorded data:
                     // this.drawRecordedData(recordedDataList.length - 1);
-                    this.drawRecordedDataSmoothed(recordedDataList.length - 1);
+                    this.drawRecDataSmoothed(recordedDataList.length - 1);
                 }
             };
         });
