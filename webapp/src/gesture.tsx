@@ -11,7 +11,7 @@ import * as hidbridge from "./hidbridge";
 import Cloud = pxt.Cloud;
 
 const d3 = require("d3");
-// var MediaStreamRecorder = require('msr');
+var MediaStreamRecorder = require('msr');
 
 // TODO: move to a file where the rest of the data definitions are located
 
@@ -284,45 +284,45 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
         //     alert("not supported");
         // }
 
-        // let nav = navigator as any;
+        let nav = navigator as any;
 
-        // nav.getUserMedia  = nav.getUserMedia || nav.webkitGetUserMedia ||
-        //                     nav.mozGetUserMedia || nav.msGetUserMedia;
+        nav.getUserMedia  = nav.getUserMedia || nav.webkitGetUserMedia ||
+                            nav.mozGetUserMedia || nav.msGetUserMedia;
         
-        // let mediaRecorder: any;
+        let mediaRecorder: any;
 
-        // if (nav.getUserMedia) {
-        //     nav.getUserMedia({audio: false, video: true},
-        //         (stream: any) => {
-        //             let video = document.querySelector('video') as any;
-        //             video.autoplay = true;
-        //             video.src = window.URL.createObjectURL(stream);
+        if (nav.getUserMedia) {
+            nav.getUserMedia({audio: false, video: true},
+                (stream: any) => {
+                    let video = document.querySelector('video') as any;
+                    video.autoplay = true;
+                    video.src = window.URL.createObjectURL(stream);
                     
-        //             mediaRecorder = new MediaStreamRecorder(stream);
-        //             mediaRecorder.mimeType = 'video/mp4';
+                    mediaRecorder = new MediaStreamRecorder(stream);
+                    mediaRecorder.mimeType = 'video/mp4';
                     
-        //             mediaRecorder.ondataavailable = function (blob: any) {
-        //                 // POST/PUT "Blob" using FormData/XHR2
-        //                 let blobURL = URL.createObjectURL(blob);
-        //                 console.log('<a href="' + blobURL + '">' + blobURL + '</a>');
+                    mediaRecorder.ondataavailable = function (blob: any) {
+                        // POST/PUT "Blob" using FormData/XHR2
+                        let blobURL = URL.createObjectURL(blob);
+                        console.log('<a href="' + blobURL + '">' + blobURL + '</a>');
 
-        //                 // add video element to be played later
-        //                 d3.select("#viz").append("video")
-        //                     .attr("src", window.URL.createObjectURL(blob))
-        //                     .attr("controls", "controls")
-        //                     .attr("width", "200px");
-        //             };
+                        // add video element to be played later
+                        d3.select("#viz").append("video")
+                            .attr("src", window.URL.createObjectURL(blob))
+                            .attr("controls", "controls")
+                            .attr("width", "200px");
+                    };
 
-        //             // mediaRecorder.ondataavailable = function (blob: any) {
-        //             //     // POST/PUT "Blob" using FormData/XHR2 
-        //             //     let blobURL = URL.createObjectURL(blob);
-        //             //     // document.write('<a href="' + blobURL + '">' + blobURL + '</a>');
-        //             //     mediaRecorder.save();
-        //             // };
-        //         }, () => {
-        //             console.error('media error');
-        //         });
-        // }
+                    // mediaRecorder.ondataavailable = function (blob: any) {
+                    //     // POST/PUT "Blob" using FormData/XHR2 
+                    //     let blobURL = URL.createObjectURL(blob);
+                    //     // document.write('<a href="' + blobURL + '">' + blobURL + '</a>');
+                    //     mediaRecorder.save();
+                    // };
+                }, () => {
+                    console.error('media error');
+                });
+        }
 
         
 
@@ -493,7 +493,7 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
                         recordedDataList[recordedDataList.length - 1].rawData.push(newData);
 
                         // start recording webcam video:
-                        // mediaRecorder.start(60 * 1000);
+                        mediaRecorder.start(60 * 1000);
                     }
                     else if (this.wasRecording == true && this.isRecording == true) {
                         // continue recording:
@@ -504,7 +504,7 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
                         recordedDataList[recordedDataList.length - 1].endTime = Date.now();
 
                         // stop recording webcam video:
-                        // mediaRecorder.stop();
+                        mediaRecorder.stop();
 
                         // visualize the recorded data:
                         this.drawRecordedDataSmoothed(recordedDataList.length - 1);
