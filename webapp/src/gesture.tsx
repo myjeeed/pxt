@@ -10,8 +10,10 @@ import * as hidbridge from "./hidbridge";
 
 import Cloud = pxt.Cloud;
 
+// JavaScript libraries used:
 const d3 = require("d3");
-var MediaStreamRecorder = require('msr');
+const MediaStreamRecorder = require("msr");
+const THREE = require("three");
 
 // TODO: move to a file where the rest of the data definitions are located
 
@@ -126,6 +128,45 @@ let smoothedLine = d3.line()
         return d.Y;
     })
     .curve(d3.curveBasis);
+
+let scene: any, camera: any, renderer: any, geometry: any, material: any, mesh: any;
+
+let cube_roll: number;
+let cube_pitch: number;
+let rotationVector: any;
+let tmpQuaternion: any;
+
+function init3D() {
+    scene = new THREE.Scene();
+
+    camera = new THREE.PerspectiveCamera( 75, 1, 1, 10000 );
+    camera.position.z = 1000;
+
+    geometry = new THREE.CylinderGeometry( 100, 100, 30, 48 /*number of segmented faces around the circumference of the cylinder*/ );
+    material = new THREE.MeshBasicMaterial( { color: 0x000000, wireframe: true } );
+
+    mesh = new THREE.Mesh( geometry, material );
+    scene.add( mesh );
+    scene.background = new THREE.Color( 0xffffff );
+
+    // rotationVector = new THREE.Vector3(0, 0, 0);
+    // tmpQuaternion = new THREE.Quaternion();
+
+    renderer = new THREE.WebGLRenderer();
+    renderer.setSize( 300, 300 );
+
+    document.getElementById("viz").appendChild( renderer.domElement );
+}
+
+function animate3D() {
+    requestAnimationFrame( animate3D );
+
+    mesh.rotation.x = cube_roll;
+    mesh.rotation.y = cube_pitch;
+
+    renderer.render( scene, camera );
+}
+
 
 export class GestureToolbox extends data.Component<ISettingsProps, GestureToolboxState> {
     isRecording: boolean = false;
@@ -361,6 +402,10 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
                             }
                         }
 
+                        // update cube's rotation:
+                        cube_roll = newData.roll * (Math.PI / 180);
+                        cube_pitch = newData.pitch * (Math.PI / 180);
+
                         dataset.push(newData);
 
                         mainSVG.select(".acc_x")
@@ -468,36 +513,8 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
             };
         });
 
-
-
-
-
-        // navigator.getUserMedia({video: true, audio: false}, function(localMediaStream) {
-        //     let video = document.querySelector('video');
-        //     video.src = window.URL.createObjectURL(localMediaStream);
-
-        //     // Note: onloadedmetadata doesn't fire in Chrome when using it with getUserMedia.
-        //     // See crbug.com/110938.
-        //     video.onloadedmetadata = function(e: any) {
-        //     // Ready to go. Do some stuff.
-        //     };
-        // }, errorCallback);
-
-
-        // This works! Though it requires 'webcam.js' to be copied
-        // into the /built/web/ directory:
-
-        // d3.select("#gum-local").autoplay = true;
-        // d3.select("video").attr("width", "300px");
-        // // let errorElement = d3.select("#errorMsg");
-        // // let video = d3.select("video");
-
-        // const script = document.createElement("script");
-
-        // script.src = "/blb/webcam.js";
-        // script.async = true;
-
-        // document.getElementById("viz").appendChild(script);
+        init3D();
+        animate3D();
     }
 
     shouldComponentUpdate(nextProps: ISettingsProps, nextState: GestureToolboxState, nextContext: any): boolean {
