@@ -2,13 +2,45 @@
 // node node_modules/less/bin/lessc theme/style.less built/web/semantic.css --include-path=node_modules/semantic-ui-less:node_modules/pxt-core/theme:theme/foo/bar
 
 #realtime-input {
-    
+    overflow: hidden;
 }
 
 #webcam-video {
     float: left;
+    width: 460px;
+    border: solid;
+    border-radius: 5px;
+    border-width: 1px;
+    padding: 2.5px;
+}
+
+#realtime-graph {
+    float: left;
 }
 
 #recorded-samples {
-    
+    overflow-x: hidden;
+    overflow-y: scroll;
+    height: 450px;
 }
+
+.sample-container {
+    float: left;
+    margin-right: 15px;
+    margin-top: 15px;
+    background-color: #eee;
+    border-radius: 5px;
+}
+
+.sample-container video {
+    width: 200px;
+    float: left;
+    margin: 70px 10px 0 10px;
+    border-radius: 5px;
+}
+
+.sample-container svg {
+    margin: 0 10px 0 0;
+}
+
+

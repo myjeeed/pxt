@@ -22,7 +22,7 @@ const THREE = require("three");
  * Generates a new file that would contain the given text and saves it 
  * by downloading it in the browser.
  */
-function download(filename: string, text: string) {
+function downloadJSON(filename: string, text: string) {
     let pom = document.createElement('a');
     pom.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
     pom.setAttribute('download', filename);
@@ -35,6 +35,22 @@ function download(filename: string, text: string) {
     }
     else {
         pom.click();
+    }
+}
+
+function downloadVideo(filename: string, video: any) {
+    let a = document.createElement('a');
+    a.setAttribute('href', video);
+    a.setAttribute('download', filename);
+
+    // Virtually click on the <a> element:
+    if (document.createEvent) {
+        let event = document.createEvent('MouseEvents');
+        event.initEvent('click', true, true);
+        a.dispatchEvent(event);
+    }
+    else {
+        a.click();
     }
 }
 
@@ -62,7 +78,7 @@ class RecordedData {
     public labelNum: number;
     public startTime: number;
     public endTime: number;
-    public svg: any;    // points to the svg containing the visualization of that recorded data.
+    public container: any;    // points to the div container for displaying sensor data + video + ...
     public video: any;
 
     constructor(_labelNum: number) {
@@ -117,7 +133,7 @@ let recordedDataList: RecordedData[];
 let MAX_GRAPH_SAMPLES = 450;
 const GRAPH_HEIGHT = 24;
 const MAX_ACC_VAL = 1023;
-const Y_OFFSET = 25;
+const Y_OFFSET = 60;
 const Y_DISTANCE = 100;
 
 let smoothedLine = d3.line()
@@ -141,18 +157,19 @@ let wasRecording: boolean = false;
 let initialized: boolean = false;
 let localMediaStream: any;
 
-function drawRecVideo(index: number) {
-    d3.select("#recorded-samples").append("video")
-        .attr("src", window.URL.createObjectURL(recordedDataList[index].video))
+function drawRecVideo(index: number, divContainer: any) {
+    let vid = recordedDataList[index].video;
+
+    divContainer.append("video")
+        .attr("src", vid)
         .attr("controls", "controls")
         .attr("width", "200px");
 }
 
-function drawRecDataSmoothed(index: number) {
-    let newSVG = d3.select("#recorded-samples")
-                        .append("svg")
-                        .attr("width", recordedDataList[index].rawData.length + 25)
-                        .attr("height", 400);
+function drawRecDataSmoothed(index: number, divContainer: any) {
+    let newSVG = divContainer.append("svg")
+        .attr("width", recordedDataList[index].rawData.length)
+        .attr("height", 300);
 
     // add time (x-axis) to the SensorData
     for (let i = 0; i < recordedDataList[index].rawData.length; i++) {
@@ -162,7 +179,7 @@ function drawRecDataSmoothed(index: number) {
     newSVG.append("path")
         .attr("d", smoothedLine(recordedDataList[index].rawData.map(
             (d: SensorData) => {
-                return new Point(d.time + 25, d.acc[0] * (GRAPH_HEIGHT / MAX_ACC_VAL) + Y_OFFSET);
+                return new Point(d.time, d.acc[0] * (GRAPH_HEIGHT / MAX_ACC_VAL) + Y_OFFSET + 25);
             })))
         .attr("stroke", "red")
         .attr("stroke-width", 2)
@@ -171,7 +188,7 @@ function drawRecDataSmoothed(index: number) {
     newSVG.append("path")
         .attr("d", smoothedLine(recordedDataList[index].rawData.map(
             (d: SensorData) => {
-                return new Point(d.time + 25, d.acc[1] * (GRAPH_HEIGHT / MAX_ACC_VAL) + Y_OFFSET + Y_DISTANCE);
+                return new Point(d.time, d.acc[1] * (GRAPH_HEIGHT / MAX_ACC_VAL) + Y_OFFSET + Y_DISTANCE + 25);
             })))
         .attr("stroke", "green")
         .attr("stroke-width", 2)
@@ -180,7 +197,7 @@ function drawRecDataSmoothed(index: number) {
     newSVG.append("path")
         .attr("d", smoothedLine(recordedDataList[index].rawData.map(
             (d: SensorData) => {
-                return new Point(d.time + 25, d.acc[2] * (GRAPH_HEIGHT / MAX_ACC_VAL) + Y_OFFSET + Y_DISTANCE * 2);
+                return new Point(d.time, d.acc[2] * (GRAPH_HEIGHT / MAX_ACC_VAL) + Y_OFFSET + Y_DISTANCE * 2 + 25);
             })))
         .attr("stroke", "blue")
         .attr("stroke-width", 2)
@@ -266,13 +283,6 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
 
                     mediaRecorder = new MediaStreamRecorder(stream);
                     mediaRecorder.mimeType = 'video/mp4';
-
-                    mediaRecorder.ondataavailable = function (blob: any) {
-                        // add video element to be played/visualized later
-                        recordedDataList[recordedDataList.length - 1].video = blob;
-                        // show it
-                        drawRecVideo(recordedDataList.length - 1);
-                    };
                 }, () => {
                     console.error('media error');
                 });
@@ -292,8 +302,7 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
         let mainSVG = d3.select("#realtime-graph")
             .append("svg")
             .attr("width", 550)
-            .attr("height", 400)
-            .attr("style", "padding: 25px; float: left;");
+            .attr("height", 375);
 
         let mainVideo = d3.select("#webcam-video");
 
@@ -343,12 +352,12 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
 
         mainSVG.append("g")
             .attr("class", "x_axis")
-            .attr("transform", "translate(25, 300)")
+            .attr("transform", "translate(25, 330)")
             .call(xAxis);
 
         mainSVG.append("g")
             .attr("class", "y_axis")
-            .attr("transform", "translate(25, -50)")
+            .attr("transform", "translate(25, -20)")
             .call(yAxis);
 
 
@@ -357,8 +366,11 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
 
         // Draw all of the previously recorded data in the current session:
         for (let i = 0; i < recordedDataList.length; i++) {
-            drawRecDataSmoothed(i);
-            drawRecVideo(i);
+            recordedDataList[i].container = d3.select("#recorded-samples")
+                                              .append("div").attr("class", "sample-container");
+
+            drawRecVideo(i, recordedDataList[i].container);
+            drawRecDataSmoothed(i, recordedDataList[i].container);
         }
 
         if (hidbridge.shouldUse()) {
@@ -449,8 +461,42 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
                             // stop recording webcam video:
                             mediaRecorder.stop();
 
+                            mediaRecorder.ondataavailable = function (blob: any) {
+                                // add video element to be played/visualized later
+                                recordedDataList[recordedDataList.length - 1].video = window.URL.createObjectURL(blob);
+                                recordedDataList[recordedDataList.length - 1].container = d3.select("#recorded-samples")
+                                                                    .append("div").attr("class", "sample-container");
+
+                                drawRecVideo(recordedDataList.length - 1, recordedDataList[recordedDataList.length - 1].container);
+                                drawRecDataSmoothed(recordedDataList.length - 1, recordedDataList[recordedDataList.length - 1].container);
+
+                                recordedDataList[recordedDataList.length - 1].container.append("button")
+                                    .attr("type", "button")
+                                    .attr("class", "delete_button")
+                                    .attr("value", recordedDataList[recordedDataList.length - 1].startTime)
+                                    .html("close")
+                                    .on("click", function() {
+                                        let elemStartTime = parseInt(this.value);
+                                        let idx: number = -1;
+
+                                        for (let i = 0; i < recordedDataList.length; i++) {
+                                            if (recordedDataList[i].startTime == elemStartTime) {
+                                                idx = i;
+                                            }
+                                        }
+                                        if (idx != -1) {
+                                            recordedDataList[idx].container.attr("style", "display: none;");
+                                            recordedDataList.splice(idx, 1);
+                                        }
+                                        else
+                                            console.error("index not found!");
+                                    });
+
+                            };
+
                             // visualize the recorded data:
-                            drawRecDataSmoothed(recordedDataList.length - 1);
+                            // drawRecDataSmoothed(recordedDataList.length - 1, recordedDataList[recordedDataList.length - 1].container);
+                            // had to move this into the webcam's event function so that it would add the data after the video
                         }
 
                         wasRecording = isRecording;
@@ -489,7 +535,9 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
         });
 
         d3.select("#download_btn").on("click", () => {
-            download("recordedData.json", JSON.stringify(recordedDataList));
+            downloadJSON("recordedData.json", JSON.stringify(recordedDataList));
+            // for (let i = 0; i < recordedDataList.length; i++)
+            //     downloadVideo("recordedVideo", recordedDataList[i].video);
         });
 
         d3.select("#file_input").on("change", () => {
@@ -508,14 +556,17 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
                     recordedDataList.push(recDataFromFile[i]);
 
                     // visualize the recorded data:
-                    // this.drawRecordedData(recordedDataList.length - 1);
-                    drawRecDataSmoothed(recordedDataList.length - 1);
+                    // drawRecVideo(recordedDataList.length - 1);
+                    recordedDataList[recordedDataList.length - 1].container = d3.select("#recorded-samples")
+                                                                                        .append("div").attr("class", "sample-container");
+                    drawRecVideo(recordedDataList.length - 1, recordedDataList[recordedDataList.length - 1].container);
+                    drawRecDataSmoothed(recordedDataList.length - 1, recordedDataList[recordedDataList.length - 1].container);
                 }
             };
         });
 
-        init3D();
-        animate3D();
+        // init3D();
+        // animate3D();
     }
 
     shouldComponentUpdate(nextProps: ISettingsProps, nextState: GestureToolboxState, nextContext: any): boolean {
@@ -531,20 +582,24 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
                 closeIcon={true}
                 closeOnDimmerClick closeOnDocumentClick
                 >
+                <button type="button" id="sendToTrain_btn">Train</button>
+                <button type="button" id="save_btn">Save JSON</button>
+                <button type="button" id="download_btn">Download JSON</button>
+                <input id="file_input" type="file"/>
+
+                <br/>
+                <br/>
+
                 <div id="realtime-input">
-                    <video id="webcam-video" width="275px"></video>
+                    <video id="webcam-video"></video>
                     <div id="realtime-graph" className="ui content">
                     </div>
                 </div>
                 <div id="recorded-samples">
                 </div>
 
-                <br/>
-                <br/>
-                <button type="button" id="sendToTrain_btn">Train</button>
-                <button type="button" id="save_btn">Save JSON</button>
-                <button type="button" id="download_btn">Download JSON</button>
-                <input id="file_input" type="file"/>
+
+
 
 
             </sui.Modal>
