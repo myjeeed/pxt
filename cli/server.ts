@@ -1,6 +1,6 @@
 /// <reference path="../typings/globals/node/index.d.ts"/>
 
-import * as ell from 'ell';
+// import * as ell from 'ell';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as http from 'http';
@@ -62,17 +62,17 @@ class SensorData {
     }
 }
 
-function vector(...xs: number[]): ell.DoubleVector {
-    const d = new ell.DoubleVector();
-    xs.forEach(i => d.add(i));
-    return d;
-}
+// function vector(...xs: number[]): ell.DoubleVector {
+//     const d = new ell.DoubleVector();
+//     xs.forEach(i => d.add(i));
+//     return d;
+// }
 
-function vectorvector(...vs: ell.DoubleVector[]): ell.DoubleVectorVector {
-    const d = new ell.DoubleVectorVector();
-    vs.forEach(v => d.add(v));
-    return d;
-}
+// function vectorvector(...vs: ell.DoubleVector[]): ell.DoubleVectorVector {
+//     const d = new ell.DoubleVectorVector();
+//     vs.forEach(v => d.add(v));
+//     return d;
+// }
 
 function setupDocfilesdirs() {
     docfilesdirs = [
@@ -628,27 +628,27 @@ function initSocketServer(wsPort: number, hostname: string) {
             console.log(event.data);
             ellSocket.send(event.data);
 
-            let recDataList = JSON.parse(event.data) as RecordedData[];
+            // let recDataList = JSON.parse(event.data) as RecordedData[];
 
-            // Create predictors to train the received data:
-            let pred = new ell.ELL_MulticlassDTWPredictor();
+            // // Create predictors to train the received data:
+            // let pred = new ell.ELL_MulticlassDTWPredictor();
 
-            for (let i = 0; i < recDataList.length; i++) {
-                // Create vectorvector of the recordedDataList - ONLY accelerometer:
-                let recDataVec = vectorvector();
+            // for (let i = 0; i < recDataList.length; i++) {
+            //     // Create vectorvector of the recordedDataList - ONLY accelerometer:
+            //     let recDataVec = vectorvector();
 
-                for (let j = 0; j < recDataList[i].rawData.length; j++) {
-                    recDataVec.add(vector(recDataList[i].rawData[j].acc[0],
-                                                  recDataList[i].rawData[j].acc[1],
-                                                  recDataList[i].rawData[j].acc[2]));
-                }
+            //     for (let j = 0; j < recDataList[i].rawData.length; j++) {
+            //         recDataVec.add(vector(recDataList[i].rawData[j].acc[0],
+            //                                       recDataList[i].rawData[j].acc[1],
+            //                                       recDataList[i].rawData[j].acc[2]));
+            //     }
 
-                let recDataProto = new ell.ELL_DTWPrototype(recDataVec);
-                pred.AddPrototype(recDataList[i].labelNum, recDataProto);
-            }
+            //     let recDataProto = new ell.ELL_DTWPrototype(recDataVec);
+            //     pred.AddPrototype(recDataList[i].labelNum, recDataProto);
+            // }
 
-            let model = new ell.ELL_Model();
-            let modelBuilder = new ell.ELL_ModelBuilder();
+            // let model = new ell.ELL_Model();
+            // let modelBuilder = new ell.ELL_ModelBuilder();
 
 
         };
