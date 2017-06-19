@@ -499,6 +499,9 @@ export class ProjectView
 
     handleMessage(msg: pxsim.SimulatorMessage) {
         switch (msg.type) {
+            case "popoutcomplete":
+                this.setState({sideDocsCollapsed: true, sideDocsLoadUrl: ''})
+                break;
             case "tutorial":
                 let t = msg as pxsim.TutorialMessage;
                 switch (t.subtype) {
@@ -1551,7 +1554,8 @@ ${compileService && compileService.githubCorePackage && compileService.gittag ? 
         const { hideMenuBar, hideEditorToolbar} = targetTheme;
         const isHeadless = simOpts.headless;
         const cookieKey = "cookieconsent"
-        const cookieConsented = targetTheme.hideCookieNotice || electron.isElectron || pxt.winrt.isWinRT() || !!pxt.storage.getLocal(cookieKey);
+        const cookieConsented = targetTheme.hideCookieNotice || electron.isElectron || pxt.winrt.isWinRT() || !!pxt.storage.getLocal(cookieKey) 
+                                || sandbox;
         const simActive = this.state.embedSimView;
         const blockActive = this.isBlocksActive();
         const javascriptActive = this.isJavaScriptActive();
@@ -2208,7 +2212,7 @@ $(document).ready(() => {
                 window.parent.postMessage(ev.data, "*");
         }
 
-        if (m.type == "tutorial") {
+        if (m.type == "tutorial" || m.type == "popoutcomplete") {
             if (theEditor && theEditor.editor)
                 theEditor.handleMessage(m);
         }
