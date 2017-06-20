@@ -94,6 +94,7 @@ namespace ts.pxtc.thumb {
             this.addInst("ldmia $r5!, $rl0", 0xc800, 0xf800);
             this.addInst("ldmia $r5, $rl0", 0xc800, 0xf800);
             this.addInst("ldr   $r0, [$r1, $i5]", 0x6800, 0xf800); // this is used for debugger breakpoint - cannot be shared
+            // this.addInst("ldr   $r0, [$r1]", 0x6800, 0xf800);
             this.addInst("ldr   $r0, [$r1, $r4]", 0x5800, 0xfe00);
             this.addInst("ldr   $r5, [pc, $i1]", 0x4800, 0xf800);
             this.addInst("ldr   $r5, $la", 0x4800, 0xf800);
@@ -127,6 +128,7 @@ namespace ts.pxtc.thumb {
             this.addInst("sev", 0xbf40, 0xffff);
             this.addInst("stmia $r5!, $rl0", 0xc000, 0xf800);
             this.addInst("str   $r0, [$r1, $i5]", 0x6000, 0xf800).canBeShared = true;
+            // this.addInst("str   $r0, [$r1]", 0x6000, 0xf800)
             this.addInst("str   $r0, [$r1, $r4]", 0x5000, 0xfe00);
             this.addInst("str   $r5, [sp, $i1]", 0x9000, 0xf800).canBeShared = true;
             this.addInst("strb  $r0, [$r1, $i4]", 0x7000, 0xf800);

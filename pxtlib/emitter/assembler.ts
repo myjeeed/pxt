@@ -590,6 +590,7 @@ namespace ts.pxtc.assembler {
                     })
                     break;
                 case ".word":
+                // case ".long":
                 case ".4bytes":
                     // TODO: a word is machine-dependent (16-bit for AVR, 32-bit for ARM)
                     this.parseNumbers(words).forEach(n => {
@@ -649,12 +650,23 @@ namespace ts.pxtc.assembler {
                     break
 
                 case ".section":
+                // case ".globl":
                 case ".global":
                     this.stackpointers = {};
                     this.stack = 0;
                     this.scope = "$S" + this.scopeId++
                     break;
 
+// will be ignored by the assembler:
+                // case ".comm":
+                // case ".syntax":
+                // case ".local":
+                // case ".fnstart":
+                // case ".save":
+                // case ".pad":
+                // case ".p2align":
+                // case ".size":
+                // case ".fnend":
                 case ".file":
                 case ".text":
                 case ".cpu":
