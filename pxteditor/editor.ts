@@ -155,6 +155,7 @@ namespace pxt.editor {
         startTutorial(tutorialId: string): void;
 
         addPackage(): void;
+        openGesture(): void;
         typecheckNow(): void;
 
         fireResize(): void;
