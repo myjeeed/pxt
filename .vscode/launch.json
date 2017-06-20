@@ -8,7 +8,7 @@
 			"program": "${workspaceRoot}/built/pxt.js",
 			"stopOnEntry": false,
 			"args": ["serve"],
-			"cwd": "${workspaceRoot}/../pxt-adafruit/projects/test",
+			"cwd": "${workspaceRoot}/../pxt-adafruit/",
 			"runtimeExecutable": null,
 			"runtimeArgs": [
 				"--nolazy"

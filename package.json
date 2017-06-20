@@ -82,7 +82,8 @@
     "d3" : "4.9.1",
     "ell": "file:../ell/build/interfaces/javascript/ell_module",
     "msr": "1.3.4",
-    "three": "0.85.2"
+    "three": "0.85.2",
+    "node-cmd": "3.0.0"
   },
   "optionalDependencies": {
     "keytar": "^3.0.2",

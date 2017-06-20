@@ -1,0 +1,55 @@
+<xml xmlns="http://www.w3.org/1999/xhtml">
+  <block type="forever" id="eaGE7!y_ew`{=cno!Z-Q" x="30" y="50">
+    <statement name="HANDLER">
+      <block type="typescript_statement" id="+u{3swbyaMPjT.-U_+j(" editable="false">
+        <mutation line0="output = gesture.predict_function(input.acceleration(Dimension.X)," line1="    input.acceleration(Dimension.Y)," line2="    input.acceleration(Dimension.Z));" numlines="3"></mutation>
+        <next>
+          <block type="serial_writeline" id="_,ZPL$hfp=b)ll0*$~ES">
+            <value name="text">
+              <block type="text_join" id="*,tbZc*JEdI$roc#nXxO">
+                <mutation items="2"></mutation>
+                <value name="ADD0">
+                  <shadow type="text" id="*TB8}|qHu/m$3EHEbwf(">
+                    <field name="TEXT">output: </field>
+                  </shadow>
+                </value>
+                <value name="ADD1">
+                  <shadow type="text">
+                    <field name="TEXT"></field>
+                  </shadow>
+                  <block type="variables_get" id="9fK*bP|DJWT1S]9CM5tM">
+                    <field name="VAR">output</field>
+                  </block>
+                </value>
+              </block>
+            </value>
+            <next>
+              <block type="device_pause" id="cTQA6zF^J0}Z;#KGIxJh">
+                <value name="pause">
+                  <shadow type="math_number" id="-vUN|D1CLz7%#|un$qI|">
+                    <field name="NUM">500</field>
+                  </shadow>
+                </value>
+                <next>
+                  <block type="neopixel_show_animation" id=";{vYoH9w--|1nEVTyhq#">
+                    <mutation showing="false"></mutation>
+                    <value name="animation">
+                      <block type="light_animation" id="`vReUphpfe;bo6bo(zdz">
+                        <field name="kind">LightAnimation.Rainbow</field>
+                      </block>
+                    </value>
+                    <value name="duration">
+                      <shadow type="math_number" id="xN8~bixEUa5HL-KU7P3G">
+                        <field name="NUM">500</field>
+                      </shadow>
+                    </value>
+                  </block>
+                </next>
+              </block>
+            </next>
+          </block>
+        </next>
+      </block>
+    </statement>
+  </block>
+</xml>

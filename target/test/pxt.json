@@ -1,0 +1,14 @@
+{
+    "name": "test",
+    "dependencies": {
+        "circuit-playground": "*"
+    },
+    "description": "",
+    "files": [
+        "main.ts",
+        "predict.cpp",
+        "predict.s",
+        "shims.d.ts",
+        "main.blocks"
+    ]
+}

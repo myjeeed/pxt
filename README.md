@@ -61,6 +61,15 @@ Then install the `pxt` command line tool (only need to do it once):
 npm install -g pxt
 ```
 
+## running
+This is just a workaround to use yotta for building the project (not the browser assembler.ts) - only tested on Mac:
+```
+mv target/upload.sh ../pxt-adafruit/upload.sh
+mv -rf target/test ../pxt-adafruit/projects/test
+cd ../pxt-adafruit
+pxt serve
+```
+
 After this you can run `pxt` from anywhere within the build tree.
 
 To start the local web server, run `pxt serve --cloud` from within the root

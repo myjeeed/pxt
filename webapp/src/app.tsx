@@ -56,6 +56,7 @@ const lf = Util.lf
 pxsim.util.injectPolyphils();
 
 let theEditor: ProjectView;
+let compile_ws: any; // the web-socket that will be used for sending compile options
 
 /*
 class CloudSyncButton extends data.Component<ISettingsProps, {}> {
@@ -941,57 +942,62 @@ export class ProjectView
     beforeCompile() { }
 
     compile(saveOnly = false) {
-        // the USB init has to be called from an event handler
-        if (/webusb=1/i.test(window.location.href)) {
-            pxt.usb.initAsync().catch(e => { })
-        }
-        this.beforeCompile();
-        let userContextWindow: Window = undefined;
-        if (pxt.BrowserUtils.isBrowserDownloadInSameWindow())
-            userContextWindow = window.open("");
+        // console.log("uploading!");
 
-        pxt.tickEvent("compile");
-        pxt.debug('compiling...');
-        if (this.state.compiling) {
-            pxt.tickEvent("compile.double");
-            return;
-        }
-        const simRestart = this.state.running;
-        this.setState({ compiling: true });
-        this.clearLog();
-        this.editor.beforeCompile();
-        if (simRestart) this.stopSimulator();
-        let state = this.editor.snapshotState()
-        compiler.compileAsync({ native: true, forceEmit: true, preferredEditor: this.getPreferredEditor() })
-            .then(resp => {
-                this.editor.setDiagnostics(this.editorFile, state)
-                let fn = pxt.appTarget.compile.useUF2 ? pxtc.BINARY_UF2 : pxtc.BINARY_HEX;
-                if (!resp.outfiles[fn]) {
-                    pxt.tickEvent("compile.noemit")
-                    core.warningNotification(lf("Compilation failed, please check your code for errors."));
-                    return Promise.resolve()
-                }
-                resp.saveOnly = saveOnly
-                resp.userContextWindow = userContextWindow;
-                resp.downloadFileBaseName = pkg.genFileName("");
-                resp.confirmAsync = core.confirmAsync;
-                return pxt.commands.deployCoreAsync(resp)
-                    .catch(e => {
-                        core.warningNotification(lf("Upload failed, please try again."));
-                        pxt.reportException(e);
-                        if (userContextWindow)
-                            try { userContextWindow.close() } catch (e) { }
-                    })
-            }).catch((e: Error) => {
-                pxt.reportException(e);
-                core.errorNotification(lf("Compilation failed, please contact support."));
-                if (userContextWindow)
-                    try { userContextWindow.close() } catch (e) { }
-            }).finally(() => {
-                this.setState({ compiling: false });
-                if (simRestart) this.runSimulator();
-            })
-            .done();
+        // // the USB init has to be called from an event handler
+        // if (/webusb=1/i.test(window.location.href)) {
+        //     pxt.usb.initAsync().catch(e => { })
+        // }
+        // this.beforeCompile();
+        // let userContextWindow: Window = undefined;
+        // if (pxt.BrowserUtils.isBrowserDownloadInSameWindow())
+        //     userContextWindow = window.open("");
+
+        // pxt.tickEvent("compile");
+        // pxt.debug('compiling...');
+        // if (this.state.compiling) {
+        //     pxt.tickEvent("compile.double");
+        //     return;
+        // }
+        // const simRestart = this.state.running;
+        // this.setState({ compiling: true });
+        // this.clearLog();
+        // this.editor.beforeCompile();
+        // if (simRestart) this.stopSimulator();
+        // let state = this.editor.snapshotState()
+        // compiler.compileAsync({ native: true, forceEmit: true, preferredEditor: this.getPreferredEditor() })
+        //     .then(resp => {
+        //         this.editor.setDiagnostics(this.editorFile, state)
+        //         let fn = pxt.appTarget.compile.useUF2 ? pxtc.BINARY_UF2 : pxtc.BINARY_HEX;
+        //         if (!resp.outfiles[fn]) {
+        //             pxt.tickEvent("compile.noemit")
+        //             core.warningNotification(lf("Compilation failed, please check your code for errors."));
+        //             return Promise.resolve()
+        //         }
+        //         resp.saveOnly = saveOnly
+        //         resp.userContextWindow = userContextWindow;
+        //         resp.downloadFileBaseName = pkg.genFileName("");
+        //         resp.confirmAsync = core.confirmAsync;
+        //         return pxt.commands.deployCoreAsync(resp)
+        //             .catch(e => {
+        //                 core.warningNotification(lf("Upload failed, please try again."));
+        //                 pxt.reportException(e);
+        //                 if (userContextWindow)
+        //                     try { userContextWindow.close() } catch (e) { }
+        //             })
+        //     }).catch((e: Error) => {
+        //         pxt.reportException(e);
+        //         core.errorNotification(lf("Compilation failed, please contact support."));
+        //         if (userContextWindow)
+        //             try { userContextWindow.close() } catch (e) { }
+        //     }).finally(() => {
+        //         this.setState({ compiling: false });
+        //         if (simRestart) this.runSimulator();
+        //     })
+        //     .done();
+        
+        compile_ws.send("compile");
+        
     }
 
     overrideTypescriptFile(text: string) {
@@ -1795,6 +1801,22 @@ function initLogin() {
     }
 }
 
+function initCompile() {
+    // this code will ask the CLI to go into the current project's directory and run `pxt` to build using yotta (locally)
+    compile_ws = new WebSocket(`ws://localhost:${pxt.options.wsPort}/${Cloud.localToken}/compile`);
+    pxt.debug('initializing compile pipe');
+
+    compile_ws.onopen = (ev: any) => {
+        pxt.debug('compile: socket opened');
+    }
+
+    compile_ws.onclose = (ev: any) => {
+        pxt.debug('compile: socket closed')
+    }
+
+    compile_ws.onmessage = (ev: any) => {
+    }
+}
 function initSerial() {
 
     // Temporarily turned off simulator's serial port
@@ -2152,6 +2174,7 @@ $(document).ready(() => {
         .then(state => state ? theEditor.setState(state) : undefined)
         .then(() => {
             initSerial();
+            initCompile();
             initScreenshots();
             initHashchange();
         })
