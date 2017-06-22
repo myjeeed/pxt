@@ -942,61 +942,59 @@ export class ProjectView
     beforeCompile() { }
 
     compile(saveOnly = false) {
-        // console.log("uploading!");
+        // the USB init has to be called from an event handler
+        if (/webusb=1/i.test(window.location.href)) {
+            pxt.usb.initAsync().catch(e => { })
+        }
+        this.beforeCompile();
+        let userContextWindow: Window = undefined;
+        if (pxt.BrowserUtils.isBrowserDownloadInSameWindow())
+            userContextWindow = window.open("");
 
-        // // the USB init has to be called from an event handler
-        // if (/webusb=1/i.test(window.location.href)) {
-        //     pxt.usb.initAsync().catch(e => { })
-        // }
-        // this.beforeCompile();
-        // let userContextWindow: Window = undefined;
-        // if (pxt.BrowserUtils.isBrowserDownloadInSameWindow())
-        //     userContextWindow = window.open("");
-
-        // pxt.tickEvent("compile");
-        // pxt.debug('compiling...');
-        // if (this.state.compiling) {
-        //     pxt.tickEvent("compile.double");
-        //     return;
-        // }
-        // const simRestart = this.state.running;
-        // this.setState({ compiling: true });
-        // this.clearLog();
-        // this.editor.beforeCompile();
-        // if (simRestart) this.stopSimulator();
-        // let state = this.editor.snapshotState()
-        // compiler.compileAsync({ native: true, forceEmit: true, preferredEditor: this.getPreferredEditor() })
-        //     .then(resp => {
-        //         this.editor.setDiagnostics(this.editorFile, state)
-        //         let fn = pxt.appTarget.compile.useUF2 ? pxtc.BINARY_UF2 : pxtc.BINARY_HEX;
-        //         if (!resp.outfiles[fn]) {
-        //             pxt.tickEvent("compile.noemit")
-        //             core.warningNotification(lf("Compilation failed, please check your code for errors."));
-        //             return Promise.resolve()
-        //         }
-        //         resp.saveOnly = saveOnly
-        //         resp.userContextWindow = userContextWindow;
-        //         resp.downloadFileBaseName = pkg.genFileName("");
-        //         resp.confirmAsync = core.confirmAsync;
-        //         return pxt.commands.deployCoreAsync(resp)
-        //             .catch(e => {
-        //                 core.warningNotification(lf("Upload failed, please try again."));
-        //                 pxt.reportException(e);
-        //                 if (userContextWindow)
-        //                     try { userContextWindow.close() } catch (e) { }
-        //             })
-        //     }).catch((e: Error) => {
-        //         pxt.reportException(e);
-        //         core.errorNotification(lf("Compilation failed, please contact support."));
-        //         if (userContextWindow)
-        //             try { userContextWindow.close() } catch (e) { }
-        //     }).finally(() => {
-        //         this.setState({ compiling: false });
-        //         if (simRestart) this.runSimulator();
-        //     })
-        //     .done();
+        pxt.tickEvent("compile");
+        pxt.debug('compiling...');
+        if (this.state.compiling) {
+            pxt.tickEvent("compile.double");
+            return;
+        }
+        const simRestart = this.state.running;
+        this.setState({ compiling: true });
+        this.clearLog();
+        this.editor.beforeCompile();
+        if (simRestart) this.stopSimulator();
+        let state = this.editor.snapshotState()
+        compiler.compileAsync({ native: true, forceEmit: true, preferredEditor: this.getPreferredEditor() })
+            .then(resp => {
+                this.editor.setDiagnostics(this.editorFile, state)
+                let fn = pxt.appTarget.compile.useUF2 ? pxtc.BINARY_UF2 : pxtc.BINARY_HEX;
+                if (!resp.outfiles[fn]) {
+                    pxt.tickEvent("compile.noemit")
+                    core.warningNotification(lf("Compilation failed, please check your code for errors."));
+                    return Promise.resolve()
+                }
+                resp.saveOnly = saveOnly
+                resp.userContextWindow = userContextWindow;
+                resp.downloadFileBaseName = pkg.genFileName("");
+                resp.confirmAsync = core.confirmAsync;
+                return pxt.commands.deployCoreAsync(resp)
+                    .catch(e => {
+                        core.warningNotification(lf("Upload failed, please try again."));
+                        pxt.reportException(e);
+                        if (userContextWindow)
+                            try { userContextWindow.close() } catch (e) { }
+                    })
+            }).catch((e: Error) => {
+                pxt.reportException(e);
+                core.errorNotification(lf("Compilation failed, please contact support."));
+                if (userContextWindow)
+                    try { userContextWindow.close() } catch (e) { }
+            }).finally(() => {
+                this.setState({ compiling: false });
+                if (simRestart) this.runSimulator();
+            })
+            .done();
         
-        compile_ws.send("compile");
+        // compile_ws.send("compile");
         
     }
 
