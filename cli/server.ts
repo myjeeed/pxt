@@ -27,6 +27,10 @@ let packagedDir = ""
 let localHexDir = path.join("built", "hexcache");
 let electronHandlers: pxt.Map<ElectronHandler> = {};
 
+class PredictFunction {
+    public code: string;
+}
+
 /** 
  * Keeps a record of all the information for a gesture sample, including SensorData and it's Label. 
  */
@@ -642,17 +646,48 @@ function initSocketServer(wsPort: number, hostname: string) {
 
                 for (let j = 0; j < recDataList[i].rawData.length; j++) {
                     recDataVec.add(vector(recDataList[i].rawData[j].acc[0],
-                                                  recDataList[i].rawData[j].acc[1],
-                                                  recDataList[i].rawData[j].acc[2]));
+                                          recDataList[i].rawData[j].acc[1],
+                                          recDataList[i].rawData[j].acc[2]));
                 }
 
                 let recDataProto = new ell.ELL_DTWPrototype(recDataVec);
                 pred.AddPrototype(recDataList[i].labelNum, recDataProto);
             }
 
-            let model = new ell.ELL_Model();
-            let modelBuilder = new ell.ELL_ModelBuilder();
+            // if (recDataList.length > 0 && recDataList[0].rawData.length > 0 && recDataList[0].rawData[0].acc.length > 0)
+            //     inputCount += 3;
+            // if (recDataList[0].rawData[0].mag.length > 0)
+            //     inputCount += 3;
 
+            let inputCount = 3;
+
+            let model = new ell.ELL_Model();
+            let modelBuilder = new ell.ELL_ModelBuilder();            
+            const inputNode = modelBuilder.AddInputNode(model, inputCount, 1); // 1==real
+            const dtwNode = modelBuilder.AddMulticlassDTWPredictorNode(
+                model, new ell.ELL_PortElements(inputNode.GetOutputPort('output')), pred);
+            const dtwOutput = new ell.ELL_PortElements(dtwNode.GetOutputPort('outputClass'));
+            // let dtwOutput = new ell.ELL_PortElements(dtwNode.GetOutputPort("distance"));
+            const map = new ell.ELL_DynamicMap(model, inputNode, dtwOutput);
+
+            // // Run some data through it
+            // const testData = vectorvector(
+            //     vector(1, 2, 3), vector(4, 5, 6), vector(7, 8, 9),
+            //     vector(1, 2, 3), vector(4, 5, 6), vector(7, 8, 9),
+            //     vector(1, 2, 1), vector(1, 1, 2), vector(1, 1, 1));
+            // for (let i = 0; i < testData.size(); i++) {
+            //     const x = testData.get(i);
+            //     const resultClass = map.ComputeInt(x);
+            //     console.log(resultClass.get(0));
+            // }
+
+            /// Now compile the map
+            const compiler = new ell.ELL_MapCompiler();
+            let compiledMap = compiler.Compile(map);
+            let generatedPredFun: PredictFunction;
+            generatedPredFun.code = compiledMap.GetCodeStringAssembly();
+
+            ellSocket.send(JSON.stringify(generatedPredFun));
 
         };
         ellSocket.onclose = function (event: any) {
