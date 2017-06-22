@@ -12,6 +12,9 @@
     border-radius: 5px;
     border-width: 1px;
     padding: 2.5px;
+    transform: rotateY(180deg);
+    -webkit-transform:rotateY(180deg);
+    -moz-transform:rotateY(180deg);
 }
 
 #realtime-graph {
@@ -28,7 +31,7 @@
     float: left;
     margin-right: 15px;
     margin-top: 15px;
-    background-color: #eee;
+    background-color: #dfdfdf;
     border-radius: 5px;
 }
 
@@ -43,4 +46,56 @@
     margin: 0 10px 0 0;
 }
 
+.delete_button {
+    border-radius: 215px;
+    background-color: #f44336;
+    color: white;
+    position: relative;
+    margin: 0px;
+    border: none;
+    padding: 0px 8px 2px 8px;
+    display: inline-block;
+    text-decoration: none;
+    text-align: center;
+    top: -330px;
+    right: -12px;
+}
+
+#label-form {
+    width: 1500px;
+    margin-top: -8px
+}
+
+#label-form label {
+    font-size: 18px;
+    float: left;
+    padding-top: 5px;
+    margin-right: 10px;
+}
+
+#label-form input {
+    float: left;
+    font-size: 18px;
+    margin-right: 12px;
+    width: 200px;
+    height: 40px;
+}
+
+#label-form button {
+    float: left;
+}
+
+.label-title {
+    text-align: center;
+    position: relative;
+    top: 10px;
+    font-size: 15px;
+}
+
+#gesture-title {
+    position: relative;
+    left: 7px;
+    top: 5px;
+    font-size: 20px;
+}
 

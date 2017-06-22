@@ -130,6 +130,11 @@ export interface GestureToolboxState {
 }
 
 let recordedDataList: RecordedData[];
+let recordingLabels: string[];
+recordingLabels = [];
+recordingLabels.push("N/A");
+let curLabelNum: number = 1; //starts with 1
+
 let MAX_GRAPH_SAMPLES = 450;
 const GRAPH_HEIGHT = 24;
 const MAX_ACC_VAL = 1023;
@@ -157,7 +162,17 @@ let wasRecording: boolean = false;
 let initialized: boolean = false;
 let localMediaStream: any;
 
-function drawRecVideo(index: number, divContainer: any) {
+function drawInformation(index: number) {
+    let divContainer: any = recordedDataList[index].container;
+    let label = recordedDataList[index].labelStr;
+
+    divContainer.append("h4")
+        .attr("class", "label-title")
+        .html(label);
+}
+
+function drawRecVideo(index: number) {
+    let divContainer: any = recordedDataList[index].container;
     let vid = recordedDataList[index].video;
 
     divContainer.append("video")
@@ -166,7 +181,8 @@ function drawRecVideo(index: number, divContainer: any) {
         .attr("width", "200px");
 }
 
-function drawRecDataSmoothed(index: number, divContainer: any) {
+function drawRecDataSmoothed(index: number) {
+    let divContainer: any = recordedDataList[index].container;
     let newSVG = divContainer.append("svg")
         .attr("width", recordedDataList[index].rawData.length)
         .attr("height", 300);
@@ -202,6 +218,36 @@ function drawRecDataSmoothed(index: number, divContainer: any) {
         .attr("stroke", "blue")
         .attr("stroke-width", 2)
         .attr("fill", "none");
+}
+
+function drawDeleteButton(index: number) {
+    let divContainer: any = recordedDataList[index].container;
+
+    divContainer.append("button")
+        .attr("type", "button")
+        .attr("class", "delete_button")
+        .attr("value", recordedDataList[recordedDataList.length - 1].startTime)
+        .html("x")
+        .on("click", function() {
+            let elemStartTime = parseInt(this.value);
+            let idx: number = -1;
+
+            for (let i = 0; i < recordedDataList.length; i++) {
+                if (recordedDataList[i].startTime == elemStartTime) {
+                    idx = i;
+                }
+            }
+            if (idx != -1) {
+                recordedDataList[idx].container.attr("style", "display: none;");
+                recordedDataList.splice(idx, 1);
+            }
+            else
+                console.error("index not found!");
+        });
+}
+
+function updateGestureLabel() {
+    d3.select("#gesture-title").html("Current Gesture: " + recordingLabels[curLabelNum]);
 }
 
 function init3D() {
@@ -248,8 +294,11 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
         // assign events to capture if recording or not
         window.onkeydown = (e: any) => {
             // if pressed "space" key
-            if (e.keyCode == 32)
+            if (e.keyCode == 32 && recordingLabels.length != 1)
                 isRecording = true;
+            else if (recordingLabels.length == 1) {
+                d3.select("#gesture-title").style("color", "red").transition().delay(1000).style("color", "black");
+            }
         };
 
         window.onkeyup = (e: any) => {
@@ -368,9 +417,10 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
         for (let i = 0; i < recordedDataList.length; i++) {
             recordedDataList[i].container = d3.select("#recorded-samples")
                                               .append("div").attr("class", "sample-container");
-
-            drawRecVideo(i, recordedDataList[i].container);
-            drawRecDataSmoothed(i, recordedDataList[i].container);
+            drawInformation(i);
+            drawRecVideo(i);
+            drawRecDataSmoothed(i);
+            drawDeleteButton(i);
         }
 
         if (hidbridge.shouldUse()) {
@@ -446,6 +496,8 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
                             recordedDataList.push(newRecord);
                             recordedDataList[recordedDataList.length - 1].startTime = Date.now();
                             recordedDataList[recordedDataList.length - 1].rawData.push(newData.Clone());
+                            recordedDataList[recordedDataList.length - 1].labelNum = curLabelNum;
+                            recordedDataList[recordedDataList.length - 1].labelStr = recordingLabels[curLabelNum];
 
                             // start recording webcam video:
                             mediaRecorder.start(60 * 1000);
@@ -467,31 +519,10 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
                                 recordedDataList[recordedDataList.length - 1].container = d3.select("#recorded-samples")
                                                                     .append("div").attr("class", "sample-container");
 
-                                drawRecVideo(recordedDataList.length - 1, recordedDataList[recordedDataList.length - 1].container);
-                                drawRecDataSmoothed(recordedDataList.length - 1, recordedDataList[recordedDataList.length - 1].container);
-
-                                recordedDataList[recordedDataList.length - 1].container.append("button")
-                                    .attr("type", "button")
-                                    .attr("class", "delete_button")
-                                    .attr("value", recordedDataList[recordedDataList.length - 1].startTime)
-                                    .html("close")
-                                    .on("click", function() {
-                                        let elemStartTime = parseInt(this.value);
-                                        let idx: number = -1;
-
-                                        for (let i = 0; i < recordedDataList.length; i++) {
-                                            if (recordedDataList[i].startTime == elemStartTime) {
-                                                idx = i;
-                                            }
-                                        }
-                                        if (idx != -1) {
-                                            recordedDataList[idx].container.attr("style", "display: none;");
-                                            recordedDataList.splice(idx, 1);
-                                        }
-                                        else
-                                            console.error("index not found!");
-                                    });
-
+                                drawInformation(recordedDataList.length - 1);
+                                drawRecVideo(recordedDataList.length - 1);
+                                drawRecDataSmoothed(recordedDataList.length - 1);
+                                drawDeleteButton(recordedDataList.length - 1);
                             };
 
                             // visualize the recorded data:
@@ -559,14 +590,37 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
                     // drawRecVideo(recordedDataList.length - 1);
                     recordedDataList[recordedDataList.length - 1].container = d3.select("#recorded-samples")
                                                                                         .append("div").attr("class", "sample-container");
-                    drawRecVideo(recordedDataList.length - 1, recordedDataList[recordedDataList.length - 1].container);
-                    drawRecDataSmoothed(recordedDataList.length - 1, recordedDataList[recordedDataList.length - 1].container);
+
+                    drawInformation(recordedDataList.length - 1);
+                    drawRecVideo(recordedDataList.length - 1);
+                    drawRecDataSmoothed(recordedDataList.length - 1);
+                    drawDeleteButton(recordedDataList.length - 1);
                 }
             };
         });
 
         // init3D();
         // animate3D();
+
+        d3.select("#create-label-btn").on("click", () => {
+            let newLabel = (document.getElementById("lbl-input") as any).value;
+
+            if (newLabel == "") {
+                alert("please enter a name for the gesture!")
+            }
+            else {
+                let idx = recordingLabels.indexOf(newLabel);
+                if (idx == -1) {
+                    recordingLabels.push(newLabel);
+                    curLabelNum = recordingLabels.length - 1;
+                }
+                else {
+                    curLabelNum = idx;
+                }
+
+                updateGestureLabel();
+            }
+        });
     }
 
     shouldComponentUpdate(nextProps: ISettingsProps, nextState: GestureToolboxState, nextContext: any): boolean {
@@ -577,19 +631,27 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
         const { visible } = this.state;
 
         return (
-            <sui.Modal open={this.state.visible} className="gesture_toolbox" header={lf("Gestures") } size="fullscreen"
+            <sui.Modal open={this.state.visible} className="gesture_toolbox" header={lf("Gesture Toolkit") } size="fullscreen"
                 onClose={() => this.hide() } dimmer={true}
                 closeIcon={true}
                 closeOnDimmerClick closeOnDocumentClick
                 >
-                <button type="button" id="sendToTrain_btn">Train</button>
+                {/*<button type="button" id="sendToTrain_btn">Train</button>
                 <button type="button" id="save_btn">Save JSON</button>
                 <button type="button" id="download_btn">Download JSON</button>
                 <input id="file_input" type="file"/>
 
                 <br/>
+                <br/>*/}
+                <div className="ui small form">
+                    <div className="field" id="label-form">
+                        <label>Enter Gesture Name: </label>
+                        <input placeholder="GestureName" type="text" maxLength={16} id="lbl-input"/>
+                        <button className="ui submit button" id="create-label-btn">Set Label</button>
+                        <span id="gesture-title">Current Gesture: N/A</span>
+                    </div>
+                </div>
                 <br/>
-
                 <div id="realtime-input">
                     <video id="webcam-video"></video>
                     <div id="realtime-graph" className="ui content">
@@ -597,11 +659,6 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
                 </div>
                 <div id="recorded-samples">
                 </div>
-
-
-
-
-
             </sui.Modal>
         )
     }
