@@ -22,7 +22,7 @@ const THREE = require("three");
  * Generates a new file that would contain the given text and saves it 
  * by downloading it in the browser.
  */
-function downloadJSON(filename: string, text: string) {
+function downloadString(filename: string, text: string) {
     let pom = document.createElement('a');
     pom.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
     pom.setAttribute('download', filename);
@@ -128,6 +128,20 @@ class SensorData {
 export interface GestureToolboxState {
     visible?: boolean;
 }
+
+enum ELLCommand {
+    CreateModel = 1,
+    ComputeLabels = 2,
+    RecvLabels = 3,
+    RecvAssembly = 4,
+}
+
+let ws: any;
+let hasTrainedModel: boolean = false;
+const max_slots: number = 10;
+let compLabelSlots: number = max_slots;
+let compLabelArray: SensorData[];
+compLabelArray = [];
 
 let recordedDataList: RecordedData[];
 let recordingLabels: string[];
@@ -465,6 +479,19 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
                             }
                         }
 
+                        if (hasTrainedModel && compLabelSlots > 0 ) {
+                            // SensorData[]
+                            compLabelArray.push(newData)
+                            compLabelSlots--;
+                        }
+                        
+                        if (compLabelSlots == 0) {
+                            // send to server in order to compute the labels of the latest X data points
+                            ws.send(ELLCommand.ComputeLabels + JSON.stringify(compLabelArray));
+                            compLabelArray = [];
+                            compLabelSlots = max_slots;
+                        }
+
                         // update cube's rotation:
                         cube_roll = newData.roll * (Math.PI / 180);
                         cube_pitch = newData.pitch * (Math.PI / 180);
@@ -541,18 +568,41 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
                 return;
 
             pxt.debug('initializing ell pipe');
-            let ws = new WebSocket(`ws://localhost:${pxt.options.wsPort}/${Cloud.localToken}/ell`);
-            ws.onopen = (ev) => {
+            ws = new WebSocket(`ws://localhost:${pxt.options.wsPort}/${Cloud.localToken}/ell`);
+            ws.onopen = (ev: any) => {
                 pxt.debug('ell-ws: socket opened');
 
-                ws.send(JSON.stringify(recordedDataList));
+                // ws.send(JSON.stringify(recordedDataList));
+
+                ws.send(ELLCommand.CreateModel + JSON.stringify(recordedDataList));
             }
-            ws.onclose = (ev) => {
+            ws.onclose = (ev: any) => {
                 pxt.debug('ell-ws: socket closed')
             }
-            ws.onmessage = (ev) => {
+            ws.onmessage = (ev: any) => {
                 try {
-                    console.log(ev.data);
+                    let recvData = (ev.data) as string;
+                    let recvCommand = parseInt(recvData[0]);
+                    let recDataStr = recvData.substr(1, recvData.length - 1);
+                                
+                    switch(recvCommand) {
+                        case ELLCommand.RecvAssembly:
+                            hasTrainedModel = true;
+
+                            downloadString("assembly.s", recDataStr);
+                        break;
+
+                        case ELLCommand.RecvLabels:
+                            let labelsArray = JSON.parse(recDataStr) as number[];
+
+                            for (let i = 0; i < labelsArray.length; i++) {
+                                if (labelsArray[i] != 0)
+                                    d3.select("#recognized-gesture-title").html("Recognized Gesture: " + labelsArray[i]);
+                                else if (labelsArray[i] == 0)
+                                    d3.select("#recognized-gesture-title").html("Recognized Gesture: N/A");
+                            }
+                        break;
+                    }
                 }
                 catch (e) {
                     pxt.debug('unknown message: ' + ev.data);
@@ -566,7 +616,7 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
         });
 
         d3.select("#download_btn").on("click", () => {
-            downloadJSON("recordedData.json", JSON.stringify(recordedDataList));
+            downloadString("recordedData.json", JSON.stringify(recordedDataList));
             // for (let i = 0; i < recordedDataList.length; i++)
             //     downloadVideo("recordedVideo", recordedDataList[i].video);
         });
@@ -636,19 +686,20 @@ export class GestureToolbox extends data.Component<ISettingsProps, GestureToolbo
                 closeIcon={true}
                 closeOnDimmerClick closeOnDocumentClick
                 >
-                {/*<button type="button" id="sendToTrain_btn">Train</button>
+                <button type="button" id="sendToTrain_btn">Train</button>
                 <button type="button" id="save_btn">Save JSON</button>
                 <button type="button" id="download_btn">Download JSON</button>
                 <input id="file_input" type="file"/>
 
                 <br/>
-                <br/>*/}
+                <br/>
                 <div className="ui small form">
                     <div className="field" id="label-form">
                         <label>Enter Gesture Name: </label>
                         <input placeholder="GestureName" type="text" maxLength={16} id="lbl-input"/>
                         <button className="ui submit button" id="create-label-btn">Set Label</button>
                         <span id="gesture-title">Current Gesture: N/A</span>
+                        <span id="recognized-gesture-title">Recognized Gesture: N/A</span>
                     </div>
                 </div>
                 <br/>

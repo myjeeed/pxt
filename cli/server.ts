@@ -27,8 +27,13 @@ let packagedDir = ""
 let localHexDir = path.join("built", "hexcache");
 let electronHandlers: pxt.Map<ElectronHandler> = {};
 
-class PredictFunction {
-    public code: string;
+let map: any;
+
+enum ELLCommand {
+    CreateModel = 1,
+    ComputeLabels = 2,
+    RecvLabels = 3,
+    RecvAssembly = 4,
 }
 
 /** 
@@ -629,66 +634,100 @@ function initSocketServer(wsPort: number, hostname: string) {
         };
     }
 
+    
+    const processRequest = function(recvData: string) {
+        return new Promise(function(resolve, reject) {
+            let recvCommand = parseInt(recvData[0]);
+            let recDataStr = recvData.substr(1, recvData.length - 1);
+            
+            switch(recvCommand) {
+                case ELLCommand.CreateModel:
+
+                    let recDataList = JSON.parse(recDataStr) as RecordedData[];
+
+                    // Create predictors to train the received data:
+                    let pred = new ell.ELL_MulticlassDTWPredictor();
+
+                    // Create DTW prototypes for each label
+                    for (let i = 0; i < recDataList.length; i++) {
+                        // Create vectorvector of the recordedDataList - ONLY accelerometer:
+                        let recDataVec = vectorvector();
+
+                        for (let j = 0; j < recDataList[i].rawData.length; j++) {
+                            recDataVec.add(vector(recDataList[i].rawData[j].acc[0],
+                                                recDataList[i].rawData[j].acc[1],
+                                                recDataList[i].rawData[j].acc[2]));
+                        }
+
+                        let recDataProto = new ell.ELL_DTWPrototype(recDataVec);
+                        pred.AddPrototype(recDataList[i].labelNum, recDataProto);
+                    }
+
+                    // TODO: Receive the inputCount as a command in the ELLCommands (based on acc/gyro/rot data)
+
+                    // if (recDataList.length > 0 && recDataList[0].rawData.length > 0 && recDataList[0].rawData[0].acc.length > 0)
+                    //     inputCount += 3;
+                    // if (recDataList[0].rawData[0].mag.length > 0)
+                    //     inputCount += 3;
+
+                    let inputCount = 3;
+
+                    let model = new ell.ELL_Model();
+                    let modelBuilder = new ell.ELL_ModelBuilder();            
+                    let inputNode = modelBuilder.AddInputNode(model, inputCount, 1); // 1==real
+                    let dtwNode = modelBuilder.AddMulticlassDTWPredictorNode(
+                        model, new ell.ELL_PortElements(inputNode.GetOutputPort('output')), pred);
+
+                    let dtwOutput = new ell.ELL_PortElements(dtwNode.GetOutputPort('outputClass'));
+                    // let dtwOutput = new ell.ELL_PortElements(dtwNode.GetOutputPort("distance"));
+                    map = new ell.ELL_DynamicMap(model, inputNode, dtwOutput);
+
+                    let compiler = new ell.ELL_MapCompiler();
+                    let compiledMap = compiler.Compile(map);
+
+                    let generatedPredFun = compiledMap.GetCodeStringAssembly();
+
+                    // ellSocket.send(ELLCommand.RecvAssembly + generatedPredFun);
+                    resolve(ELLCommand.RecvAssembly + generatedPredFun);
+                break;
+
+                case ELLCommand.ComputeLabels:
+                    let dataList = JSON.parse(recDataStr) as SensorData[];
+                    let labelList: number[];
+                    labelList = [];
+
+                    for (let i = 0; i < dataList.length; i++) {
+                        let acc_point = vector(dataList[i].acc[0], dataList[i].acc[1], dataList[i].acc[2]);
+                        let resultClass = map.ComputeInt(acc_point);
+                        labelList.push(resultClass);
+                    }
+                    
+                    // ellSocket.send(ELLCommand.RecvLabels + JSON.stringify(labelList));
+                    resolve(ELLCommand.RecvLabels + JSON.stringify(labelList));
+                break;
+
+                default:
+                    reject(Error("Wrong Command!"));
+            }
+        });
+    }
+
+
     function startELL(request: any, socket: any, body: any) {
         ellSocket = new WebSocket(request, socket, body);
         ellSocket.onmessage = function (event: any) {
-            console.log(event.data);
-            ellSocket.send(event.data);
+            // turn this into a promise:
 
-            let recDataList = JSON.parse(event.data) as RecordedData[];
+            // promise1 -> Command.CreateModel -> will initialize the model and return the assembly code
+            // promise2 -> Command.ComputeLabels -> will return the computed labels
+            // Promise.resolve().then(() => {ws.send()});
 
-            // Create predictors to train the received data:
-            let pred = new ell.ELL_MulticlassDTWPredictor();
+            let recvData = (event.data) as string;
 
-            for (let i = 0; i < recDataList.length; i++) {
-                // Create vectorvector of the recordedDataList - ONLY accelerometer:
-                let recDataVec = vectorvector();
-
-                for (let j = 0; j < recDataList[i].rawData.length; j++) {
-                    recDataVec.add(vector(recDataList[i].rawData[j].acc[0],
-                                          recDataList[i].rawData[j].acc[1],
-                                          recDataList[i].rawData[j].acc[2]));
-                }
-
-                let recDataProto = new ell.ELL_DTWPrototype(recDataVec);
-                pred.AddPrototype(recDataList[i].labelNum, recDataProto);
-            }
-
-            // if (recDataList.length > 0 && recDataList[0].rawData.length > 0 && recDataList[0].rawData[0].acc.length > 0)
-            //     inputCount += 3;
-            // if (recDataList[0].rawData[0].mag.length > 0)
-            //     inputCount += 3;
-
-            let inputCount = 3;
-
-            let model = new ell.ELL_Model();
-            let modelBuilder = new ell.ELL_ModelBuilder();            
-            const inputNode = modelBuilder.AddInputNode(model, inputCount, 1); // 1==real
-            const dtwNode = modelBuilder.AddMulticlassDTWPredictorNode(
-                model, new ell.ELL_PortElements(inputNode.GetOutputPort('output')), pred);
-            const dtwOutput = new ell.ELL_PortElements(dtwNode.GetOutputPort('outputClass'));
-            // let dtwOutput = new ell.ELL_PortElements(dtwNode.GetOutputPort("distance"));
-            const map = new ell.ELL_DynamicMap(model, inputNode, dtwOutput);
-
-            // // Run some data through it
-            // const testData = vectorvector(
-            //     vector(1, 2, 3), vector(4, 5, 6), vector(7, 8, 9),
-            //     vector(1, 2, 3), vector(4, 5, 6), vector(7, 8, 9),
-            //     vector(1, 2, 1), vector(1, 1, 2), vector(1, 1, 1));
-            // for (let i = 0; i < testData.size(); i++) {
-            //     const x = testData.get(i);
-            //     const resultClass = map.ComputeInt(x);
-            //     console.log(resultClass.get(0));
-            // }
-
-            /// Now compile the map
-            const compiler = new ell.ELL_MapCompiler();
-            let compiledMap = compiler.Compile(map);
-            let generatedPredFun: PredictFunction;
-            generatedPredFun.code = compiledMap.GetCodeStringAssembly();
-
-            ellSocket.send(JSON.stringify(generatedPredFun));
-
+            processRequest(recvData).then((result) => {
+                ellSocket.send(result);
+            })
+            
         };
         ellSocket.onclose = function (event: any) {
             console.log('ell socket connection closed')
