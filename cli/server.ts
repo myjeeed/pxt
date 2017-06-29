@@ -686,9 +686,8 @@ function initSocketServer(wsPort: number, hostname: string) {
                     let compiledMap = compiler.Compile(map);
 
                     let generatedPredFun = compiledMap.GetCodeStringAssembly();
-
-                    // ellSocket.send(ELLCommand.RecvAssembly + generatedPredFun);
                     resolve(ELLCommand.RecvAssembly + generatedPredFun);
+                    // resolve(ELLCommand.RecvAssembly);
                 break;
 
                 case ELLCommand.ComputeLabels:
@@ -699,7 +698,7 @@ function initSocketServer(wsPort: number, hostname: string) {
                     for (let i = 0; i < dataList.length; i++) {
                         let acc_point = vector(dataList[i].acc[0], dataList[i].acc[1], dataList[i].acc[2]);
                         let resultClass = map.ComputeInt(acc_point);
-                        labelList.push(resultClass);
+                        labelList.push(resultClass.get(0));
                     }
                     
                     // ellSocket.send(ELLCommand.RecvLabels + JSON.stringify(labelList));
